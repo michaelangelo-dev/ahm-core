@@ -108,6 +108,7 @@ final class AHM_Admin
             'quick-user'      => __('Quick User Creation', 'ahm-core'),
             'image-converter' => __('Image Converter', 'ahm-core'),
             'cache-manager'   => __('Cache Manager', 'ahm-core'),
+            'contact-info'    => __('Contact Info', 'ahm-core'),
         ];
     }
 
@@ -149,6 +150,8 @@ final class AHM_Admin
                             <span class="dashicons dashicons-images-alt2" style="margin-right:4px;"></span>
                         <?php elseif ($slug === 'cache-manager'): ?>
                             <span class="dashicons dashicons-performance" style="margin-right:4px;"></span>
+                        <?php elseif ($slug === 'contact-info'): ?>
+                            <span class="dashicons dashicons-location" style="margin-right:4px;"></span>
                         <?php endif; ?>
                         <?php echo esc_html($label); ?>
                     </a>

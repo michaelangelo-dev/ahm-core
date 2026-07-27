@@ -15,6 +15,7 @@ if (! defined('WP_UNINSTALL_PLUGIN')) {
 }
 
 delete_option('ahm_webp_settings');
+delete_option('ahm_contact_info_settings');
 
 global $wpdb;
 
