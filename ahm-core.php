@@ -31,13 +31,13 @@ define('AHM_CORE_BASENAME', plugin_basename(__FILE__));
  * 2. Includes
  *------------------------------------------------------------*/
 require_once AHM_CORE_DIR . 'includes/class-ahm-admin.php';
-require_once AHM_CORE_DIR . 'includes/class-ahm-quick-user.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-webp-converter.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-webp-admin.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-webp-frontend.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-cache-manager.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-contact-info.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-elementor-dynamic-tags.php';
+require_once AHM_CORE_DIR . 'includes/class-ahm-site-utilities.php';
 
 /*--------------------------------------------------------------
  * 3. Plugin Protection (preserved from v1)
@@ -110,15 +110,15 @@ register_deactivation_hook(__FILE__, function (): void {
  * context. Front-end visitors only need AHM_WebP_Frontend.
  *------------------------------------------------------------*/
 add_action('plugins_loaded', function (): void {
-    // Front-end WebP delivery, Contact shortcodes & Elementor Dynamic Tags — always active.
+    // Front-end WebP delivery, Contact shortcodes, Dynamic Tags & Site Utilities — always active.
     AHM_WebP_Frontend::get_instance();
     AHM_Contact_Info::get_instance();
     AHM_Elementor_Dynamic_Tags::get_instance();
+    AHM_Site_Utilities::get_instance();
 
     // Admin-only classes — skip on front-end page loads.
     if (is_admin() || wp_doing_ajax() || wp_doing_cron()) {
         AHM_Admin::get_instance();
-        AHM_Quick_User::get_instance();
         AHM_WebP_Admin::get_instance();
         AHM_Cache_Manager::get_instance();
     }

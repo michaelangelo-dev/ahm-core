@@ -105,10 +105,10 @@ final class AHM_Admin
     public static function get_tabs(): array
     {
         return [
-            'quick-user'      => __('Quick User Creation', 'ahm-core'),
             'image-converter' => __('Image Converter', 'ahm-core'),
             'cache-manager'   => __('Cache Manager', 'ahm-core'),
             'contact-info'    => __('Contact Info', 'ahm-core'),
+            'site-utilities'  => __('Site Utilities', 'ahm-core'),
         ];
     }
 
@@ -119,7 +119,7 @@ final class AHM_Admin
     {
         $tab  = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : '';
         $tabs = self::get_tabs();
-        return array_key_exists($tab, $tabs) ? $tab : 'quick-user';
+        return array_key_exists($tab, $tabs) ? $tab : 'image-converter';
     }
 
     /**
@@ -144,14 +144,14 @@ final class AHM_Admin
                 <?php foreach ($tabs as $slug => $label): ?>
                     <a href="<?php echo esc_url(add_query_arg('tab', $slug, $page_url)); ?>"
                        class="nav-tab <?php echo $active_tab === $slug ? 'nav-tab-active' : ''; ?>">
-                        <?php if ($slug === 'quick-user'): ?>
-                            <span class="dashicons dashicons-admin-users" style="margin-right:4px;"></span>
-                        <?php elseif ($slug === 'image-converter'): ?>
+                        <?php if ($slug === 'image-converter'): ?>
                             <span class="dashicons dashicons-images-alt2" style="margin-right:4px;"></span>
                         <?php elseif ($slug === 'cache-manager'): ?>
                             <span class="dashicons dashicons-performance" style="margin-right:4px;"></span>
                         <?php elseif ($slug === 'contact-info'): ?>
                             <span class="dashicons dashicons-location" style="margin-right:4px;"></span>
+                        <?php elseif ($slug === 'site-utilities'): ?>
+                            <span class="dashicons dashicons-admin-tools" style="margin-right:4px;"></span>
                         <?php endif; ?>
                         <?php echo esc_html($label); ?>
                     </a>
