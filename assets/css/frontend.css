@@ -1,0 +1,20 @@
+/**
+ * AHM Core Frontend Styles
+ *
+ * Ensures converted contact links inherit typography, color, and text-decoration
+ * from their parent containers in WordPress templates and Elementor widgets.
+ */
+
+a.ahm-contact-link,
+a.ahm-contact-phone-link,
+a.ahm-contact-email-link,
+a.ahm-contact-address-link,
+a.ahm-contact-maps-link {
+    color: inherit;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    text-decoration: inherit;
+}

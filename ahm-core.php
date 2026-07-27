@@ -36,6 +36,8 @@ require_once AHM_CORE_DIR . 'includes/class-ahm-webp-converter.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-webp-admin.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-webp-frontend.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-cache-manager.php';
+require_once AHM_CORE_DIR . 'includes/class-ahm-contact-info.php';
+require_once AHM_CORE_DIR . 'includes/class-ahm-elementor-dynamic-tags.php';
 
 /*--------------------------------------------------------------
  * 3. Plugin Protection (preserved from v1)
@@ -108,8 +110,10 @@ register_deactivation_hook(__FILE__, function (): void {
  * context. Front-end visitors only need AHM_WebP_Frontend.
  *------------------------------------------------------------*/
 add_action('plugins_loaded', function (): void {
-    // Front-end WebP delivery — always active.
+    // Front-end WebP delivery, Contact shortcodes & Elementor Dynamic Tags — always active.
     AHM_WebP_Frontend::get_instance();
+    AHM_Contact_Info::get_instance();
+    AHM_Elementor_Dynamic_Tags::get_instance();
 
     // Admin-only classes — skip on front-end page loads.
     if (is_admin() || wp_doing_ajax() || wp_doing_cron()) {
