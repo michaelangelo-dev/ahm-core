@@ -57,6 +57,7 @@ final class AHM_Site_Utilities
      *   uppercase_alt_text: bool,
      *   block_author_enum: bool,
      *   block_empty_author_archives: bool,
+     *   prevent_cpt_404: bool,
      *   enable_shortcode_minute_read: bool,
      *   enable_shortcode_custom_title: bool,
      *   enable_shortcode_custom_share: bool
@@ -70,6 +71,7 @@ final class AHM_Site_Utilities
             'uppercase_alt_text'           => true,
             'block_author_enum'            => true,
             'block_empty_author_archives'  => true,
+            'prevent_cpt_404'              => true,
             'enable_shortcode_minute_read'  => true,
             'enable_shortcode_custom_title' => true,
             'enable_shortcode_custom_share' => true,
@@ -115,6 +117,7 @@ final class AHM_Site_Utilities
             'uppercase_alt_text',
             'block_author_enum',
             'block_empty_author_archives',
+            'prevent_cpt_404',
             'enable_shortcode_minute_read',
             'enable_shortcode_custom_title',
             'enable_shortcode_custom_share',
@@ -181,6 +184,11 @@ final class AHM_Site_Utilities
                 add_shortcode('custom_share_url', [$this, 'shortcode_custom_share_url']);
             }
         });
+
+        // 7. CPT 404 Prevention for ACF Post Types
+        if (! empty($options['prevent_cpt_404'])) {
+            add_action('generate_rewrite_rules', [$this, 'ensure_acf_post_types_registered'], 1);
+        }
     }
 
     /*--------------------------------------------------------------
@@ -304,6 +312,61 @@ final class AHM_Site_Utilities
                     status_header(404);
                     nocache_headers();
                 }
+            }
+        }
+    }
+
+    /**
+     * Permanently prevent CPT 404 errors by ensuring ACF Custom Post Types
+     * are registered before WordPress compiles and saves rewrite rules.
+     *
+     * Dynamically checks all ACF-registered post types to verify if any are missing
+     * from the WordPress global registry before rewrite rules are generated.
+     *
+     * @param WP_Rewrite|null $wp_rewrite WordPress rewrite component instance.
+     * @return void
+     */
+    public function ensure_acf_post_types_registered(?WP_Rewrite $wp_rewrite = null): void
+    {
+        if (! function_exists('acf_get_store') || ! class_exists('ACF_Post_Type')) {
+            return;
+        }
+
+        $needs_registration = false;
+
+        // Dynamically retrieve configured ACF post types
+        $acf_cpts = function_exists('acf_get_post_types') ? acf_get_post_types() : [];
+
+        if (! empty($acf_cpts)) {
+            foreach ($acf_cpts as $cpt) {
+                $post_type_name = is_array($cpt) ? ($cpt['post_type'] ?? '') : ($cpt->post_type ?? '');
+                if (! empty($post_type_name) && ! post_type_exists((string) $post_type_name)) {
+                    $needs_registration = true;
+                    break;
+                }
+            }
+        } else {
+            // Fallback: Check ACF internal store if acf_get_post_types() returns empty
+            $store = acf_get_store('post-type');
+            if ($store && is_object($store) && method_exists($store, 'get')) {
+                $items = $store->get();
+                if (is_array($items) && ! empty($items)) {
+                    foreach ($items as $name => $item) {
+                        $cpt_key = is_array($item) ? ($item['post_type'] ?? $name) : $name;
+                        if (! empty($cpt_key) && ! post_type_exists((string) $cpt_key)) {
+                            $needs_registration = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Trigger ACF post type registration if any post type is missing
+        if ($needs_registration) {
+            $acf_post_types = new ACF_Post_Type();
+            if (method_exists($acf_post_types, 'register_post_types')) {
+                $acf_post_types->register_post_types();
             }
         }
     }
@@ -474,6 +537,18 @@ final class AHM_Site_Utilities
                                     <span class="description"><?php esc_html_e('Protects admin accounts with 0 published posts by serving a 404 header on their archive page.', 'ahm-core'); ?></span>
                                 </label>
                             </fieldset>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Rewrite Rules & CPTs', 'ahm-core'); ?></th>
+                        <td>
+                            <label for="ahm_prevent_cpt_404">
+                                <input type="checkbox" id="ahm_prevent_cpt_404" name="<?php echo esc_attr(self::OPTION_KEY); ?>[prevent_cpt_404]" value="1" <?php checked(! empty($options['prevent_cpt_404'])); ?> />
+                                <strong><?php esc_html_e('Prevent ACF Custom Post Type 404 Errors', 'ahm-core'); ?></strong>
+                                <br />
+                                <span class="description"><?php esc_html_e('Ensures all ACF Custom Post Types are dynamically registered prior to rewrite rule compilation to prevent 404 permalink issues.', 'ahm-core'); ?></span>
+                            </label>
                         </td>
                     </tr>
 
