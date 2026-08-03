@@ -3,7 +3,7 @@
  *
  * Ensures converted contact links inherit typography, color, and text-decoration
  * from their parent containers in WordPress templates and Elementor widgets,
- * preventing theme reset stylesheets (e.g. Hello Elementor reset.css) from overriding colors.
+ * while excluding links styled as Elementor buttons (.elementor-button).
  */
 
 a:is(
@@ -12,7 +12,7 @@ a:is(
     .ahm-contact-email-link,
     .ahm-contact-address-link,
     .ahm-contact-maps-link
-):is(:hover, :focus, :active, :focus-visible, :visited, :where(*)) {
+):not(.elementor-button):is(:hover, :focus, :active, :focus-visible, :visited, :where(*)) {
     color: inherit !important;
     font-family: inherit !important;
     font-size: inherit !important;
