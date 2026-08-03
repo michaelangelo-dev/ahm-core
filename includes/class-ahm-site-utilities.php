@@ -57,24 +57,18 @@ final class AHM_Site_Utilities
      *   uppercase_alt_text: bool,
      *   block_author_enum: bool,
      *   block_empty_author_archives: bool,
-     *   prevent_cpt_404: bool,
-     *   enable_shortcode_minute_read: bool,
-     *   enable_shortcode_custom_title: bool,
-     *   enable_shortcode_custom_share: bool
+     *   prevent_cpt_404: bool
      * }
      */
     public static function get_options(): array
     {
         $defaults = [
-            'disable_comments'             => true,
-            'wp_rocket_rucss_exclusions'   => true,
-            'uppercase_alt_text'           => true,
-            'block_author_enum'            => true,
-            'block_empty_author_archives'  => true,
-            'prevent_cpt_404'              => true,
-            'enable_shortcode_minute_read'  => true,
-            'enable_shortcode_custom_title' => true,
-            'enable_shortcode_custom_share' => true,
+            'disable_comments'            => true,
+            'wp_rocket_rucss_exclusions'  => true,
+            'uppercase_alt_text'          => true,
+            'block_author_enum'           => true,
+            'block_empty_author_archives' => true,
+            'prevent_cpt_404'             => true,
         ];
 
         $saved = get_option(self::OPTION_KEY, []);
@@ -118,9 +112,6 @@ final class AHM_Site_Utilities
             'block_author_enum',
             'block_empty_author_archives',
             'prevent_cpt_404',
-            'enable_shortcode_minute_read',
-            'enable_shortcode_custom_title',
-            'enable_shortcode_custom_share',
         ];
 
         $sanitized = [];
@@ -172,20 +163,7 @@ final class AHM_Site_Utilities
             add_action('template_redirect', [$this, 'block_empty_author_archives']);
         }
 
-        // 6. Shortcodes
-        add_action('init', function () use ($options): void {
-            if (! empty($options['enable_shortcode_minute_read'])) {
-                add_shortcode('minute_read', [$this, 'shortcode_minute_read']);
-            }
-            if (! empty($options['enable_shortcode_custom_title'])) {
-                add_shortcode('get_post_custom_title', [$this, 'shortcode_custom_title']);
-            }
-            if (! empty($options['enable_shortcode_custom_share'])) {
-                add_shortcode('custom_share_url', [$this, 'shortcode_custom_share_url']);
-            }
-        });
-
-        // 7. CPT 404 Prevention for ACF Post Types
+        // 6. CPT 404 Prevention for ACF Post Types
         if (! empty($options['prevent_cpt_404'])) {
             add_action('generate_rewrite_rules', [$this, 'ensure_acf_post_types_registered'], 1);
         }
@@ -372,93 +350,6 @@ final class AHM_Site_Utilities
     }
 
     /*--------------------------------------------------------------
-     * Shortcode Handlers
-     *------------------------------------------------------------*/
-
-    public function shortcode_minute_read(): string
-    {
-        global $post;
-
-        if (! $post instanceof WP_Post) {
-            return '';
-        }
-
-        $content    = get_post_field('post_content', $post->ID);
-        $word_count = str_word_count(strip_tags((string) $content));
-        $wpm        = 200;
-        $minutes    = (int) ceil($word_count / $wpm);
-        $label      = __(' min read', 'ahm-core');
-
-        return sprintf('<span class="post-meta__read-time">%d%s</span>', $minutes, $label);
-    }
-
-    public function shortcode_custom_title(array|string $atts = []): string
-    {
-        $parsed = shortcode_atts([
-            'has_bold' => 'true',
-        ], (array) $atts, 'get_post_custom_title');
-
-        $title = get_the_title();
-
-        if (function_exists('get_field')) {
-            $acf_field = get_field('treatment_page_-_alternate_title');
-            $title     = ! empty($acf_field) ? (string) $acf_field : $title;
-        }
-
-        $title = esc_html($title);
-
-        if (filter_var($parsed['has_bold'], FILTER_VALIDATE_BOOLEAN)) {
-            $title = $this->format_title_with_bold($title);
-        }
-
-        return $title;
-    }
-
-    private function format_title_with_bold(string $title): string
-    {
-        $words = explode(' ', $title);
-        $count = count($words);
-
-        if (0 === $count) {
-            return '';
-        }
-
-        $num_to_bold = match ($count) {
-            1, 2    => 1,
-            3       => 2,
-            default => 3,
-        };
-
-        $num_to_bold = min($num_to_bold, $count);
-        $bold_part   = array_slice($words, 0, $num_to_bold);
-        $normal_part = array_slice($words, $num_to_bold);
-
-        $output = '<b>' . implode(' ', $bold_part) . '</b>';
-
-        if (! empty($normal_part)) {
-            $output .= ' ' . implode(' ', $normal_part);
-        }
-
-        return $output;
-    }
-
-    public function shortcode_custom_share_url(array|string $atts = []): string
-    {
-        $parsed = shortcode_atts([
-            'type' => 'facebook',
-        ], (array) $atts, 'custom_share_url');
-
-        $url   = urlencode(get_permalink());
-        $title = urlencode(get_the_title());
-
-        return match (strtolower((string) $parsed['type'])) {
-            'twitter', 'x' => "https://twitter.com/intent/tweet?url={$url}&text={$title}",
-            'linkedin'     => "https://www.linkedin.com/sharing/share-offsite/?url={$url}",
-            default        => "https://www.facebook.com/sharer/sharer.php?u={$url}",
-        };
-    }
-
-    /*--------------------------------------------------------------
      * Admin Tab Renderer
      *------------------------------------------------------------*/
 
@@ -477,7 +368,7 @@ final class AHM_Site_Utilities
         ?>
         <div class="ahm-card" style="background:#fff; border:1px solid #ccd0d4; border-radius:4px; padding:20px; max-width:800px; margin-top:20px;">
             <h2><?php esc_html_e('Site Utilities & Feature Controls', 'ahm-core'); ?></h2>
-            <p><?php esc_html_e('Enable or disable individual site tweaks, security policies, cache exclusions, and shortcodes.', 'ahm-core'); ?></p>
+            <p><?php esc_html_e('Enable or disable individual site tweaks, security policies, and cache exclusions.', 'ahm-core'); ?></p>
 
             <form method="post" action="options.php">
                 <?php settings_fields('ahm_site_utilities_group'); ?>
@@ -549,28 +440,6 @@ final class AHM_Site_Utilities
                                 <br />
                                 <span class="description"><?php esc_html_e('Ensures all ACF Custom Post Types are dynamically registered prior to rewrite rule compilation to prevent 404 permalink issues.', 'ahm-core'); ?></span>
                             </label>
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th scope="row"><?php esc_html_e('Shortcodes Control', 'ahm-core'); ?></th>
-                        <td>
-                            <fieldset>
-                                <label for="ahm_enable_shortcode_minute_read" style="margin-bottom:10px; display:block;">
-                                    <input type="checkbox" id="ahm_enable_shortcode_minute_read" name="<?php echo esc_attr(self::OPTION_KEY); ?>[enable_shortcode_minute_read]" value="1" <?php checked(! empty($options['enable_shortcode_minute_read'])); ?> />
-                                    <code>[minute_read]</code> — <?php esc_html_e('Reading time calculator (~200 wpm).', 'ahm-core'); ?>
-                                </label>
-
-                                <label for="ahm_enable_shortcode_custom_title" style="margin-bottom:10px; display:block;">
-                                    <input type="checkbox" id="ahm_enable_shortcode_custom_title" name="<?php echo esc_attr(self::OPTION_KEY); ?>[enable_shortcode_custom_title]" value="1" <?php checked(! empty($options['enable_shortcode_custom_title'])); ?> />
-                                    <code>[get_post_custom_title has_bold="true"]</code> — <?php esc_html_e('Fetches title/ACF alternate title with bold first words.', 'ahm-core'); ?>
-                                </label>
-
-                                <label for="ahm_enable_shortcode_custom_share" style="display:block;">
-                                    <input type="checkbox" id="ahm_enable_shortcode_custom_share" name="<?php echo esc_attr(self::OPTION_KEY); ?>[enable_shortcode_custom_share]" value="1" <?php checked(! empty($options['enable_shortcode_custom_share'])); ?> />
-                                    <code>[custom_share_url type="facebook|twitter|linkedin"]</code> — <?php esc_html_e('Generates social share links.', 'ahm-core'); ?>
-                                </label>
-                            </fieldset>
                         </td>
                     </tr>
                 </table>

@@ -68,15 +68,20 @@ final class AHM_Contact_Info
     /**
      * Retrieve stored contact info options with default values.
      *
-     * @return array{phone: string, email: string, address: string, maps_url: string, auto_link_all_emails: bool, auto_link_all_phones: bool}
+     * @return array{phone: string, email: string, address_line1: string, address_line2: string, address: string, maps_url: string, locations: array<int, array{name: string, address: string, maps_url: string}>, auto_link_all_emails: bool, auto_link_all_phones: bool}
      */
     public static function get_options(): array
     {
+        $default_locations = array_fill(0, 6, ['name' => '', 'address' => '', 'maps_url' => '']);
+
         $defaults = [
             'phone'                => '',
             'email'                => '',
+            'address_line1'        => '',
+            'address_line2'        => '',
             'address'              => '',
             'maps_url'             => '',
+            'locations'            => $default_locations,
             'auto_link_all_emails' => false,
             'auto_link_all_phones' => false,
         ];
@@ -87,7 +92,24 @@ final class AHM_Contact_Info
             return $defaults;
         }
 
-        return array_merge($defaults, $saved);
+        $merged = array_merge($defaults, $saved);
+
+        if (! isset($saved['locations']) || ! is_array($saved['locations'])) {
+            $merged['locations'] = $default_locations;
+        } else {
+            $locations = [];
+            for ($i = 0; $i < 6; $i++) {
+                $loc = isset($saved['locations'][$i]) && is_array($saved['locations'][$i]) ? $saved['locations'][$i] : [];
+                $locations[] = [
+                    'name'     => (string) ($loc['name'] ?? ''),
+                    'address'  => (string) ($loc['address'] ?? ''),
+                    'maps_url' => (string) ($loc['maps_url'] ?? ''),
+                ];
+            }
+            $merged['locations'] = $locations;
+        }
+
+        return $merged;
     }
 
     /**
@@ -160,31 +182,27 @@ final class AHM_Contact_Info
             [
                 'type'              => 'array',
                 'sanitize_callback' => [$this, 'sanitize_settings'],
-                'default'           => [
-                    'phone'                => '',
-                    'email'                => '',
-                    'address'              => '',
-                    'maps_url'             => '',
-                    'auto_link_all_emails' => false,
-                    'auto_link_all_phones' => false,
-                ],
+                'default'           => self::get_options(),
             ]
         );
     }
 
     /**
-     * Sanitize settings fields before saving to database.
+     * Sanitize contact info form submissions.
      *
      * @param mixed $input Submitted raw form data.
-     * @return array{phone: string, email: string, address: string, maps_url: string, auto_link_all_emails: bool, auto_link_all_phones: bool}
+     * @return array<string, mixed>
      */
     public function sanitize_settings(mixed $input): array
     {
         $sanitized = [
             'phone'                => '',
             'email'                => '',
+            'address_line1'        => '',
+            'address_line2'        => '',
             'address'              => '',
             'maps_url'             => '',
+            'locations'            => array_fill(0, 6, ['name' => '', 'address' => '', 'maps_url' => '']),
             'auto_link_all_emails' => false,
             'auto_link_all_phones' => false,
         ];
@@ -201,6 +219,14 @@ final class AHM_Contact_Info
             $sanitized['email'] = sanitize_email((string) $input['email']);
         }
 
+        if (isset($input['address_line1'])) {
+            $sanitized['address_line1'] = sanitize_text_field((string) $input['address_line1']);
+        }
+
+        if (isset($input['address_line2'])) {
+            $sanitized['address_line2'] = sanitize_text_field((string) $input['address_line2']);
+        }
+
         if (isset($input['address'])) {
             $sanitized['address'] = sanitize_textarea_field((string) $input['address']);
         }
@@ -208,6 +234,18 @@ final class AHM_Contact_Info
         if (isset($input['maps_url'])) {
             $sanitized['maps_url'] = esc_url_raw((string) $input['maps_url']);
         }
+
+        $sanitized_locations = [];
+        $raw_locations       = isset($input['locations']) && is_array($input['locations']) ? $input['locations'] : [];
+        for ($i = 0; $i < 6; $i++) {
+            $loc                 = isset($raw_locations[$i]) && is_array($raw_locations[$i]) ? $raw_locations[$i] : [];
+            $sanitized_locations[] = [
+                'name'     => isset($loc['name']) ? sanitize_text_field((string) $loc['name']) : '',
+                'address'  => isset($loc['address']) ? sanitize_text_field((string) $loc['address']) : '',
+                'maps_url' => isset($loc['maps_url']) ? esc_url_raw((string) $loc['maps_url']) : '',
+            ];
+        }
+        $sanitized['locations'] = $sanitized_locations;
 
         $sanitized['auto_link_all_emails'] = ! empty($input['auto_link_all_emails']);
         $sanitized['auto_link_all_phones'] = ! empty($input['auto_link_all_phones']);
@@ -364,6 +402,25 @@ final class AHM_Contact_Info
                 unset($part);
             }
 
+            // Specified AHM email address matching
+            if (! empty($email)) {
+                $email_replacement = sprintf(
+                    '<a href="%s" class="ahm-contact-link ahm-contact-email-link">%s</a>',
+                    esc_url('mailto:' . $email),
+                    esc_html($email)
+                );
+
+                foreach ($parts as &$part) {
+                    if (str_starts_with($part, '<')) {
+                        continue;
+                    }
+                    if (str_contains($part, $email)) {
+                        $part = str_replace($email, $email_replacement, $part);
+                    }
+                }
+                unset($part);
+            }
+
             // Global email auto-linking toggle
             if ($auto_all_emails) {
                 $email_regex = '/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/';
@@ -453,23 +510,80 @@ final class AHM_Contact_Info
 
                     <tr>
                         <th scope="row">
-                            <label for="ahm_address"><?php esc_html_e('Physical Address', 'ahm-core'); ?></label>
+                            <label for="ahm_address_line1"><?php esc_html_e('Hospital / Facility Name', 'ahm-core'); ?></label>
                         </th>
                         <td>
-                            <textarea id="ahm_address" name="<?php echo esc_attr(self::OPTION_KEY); ?>[address]" rows="4" class="large-text" placeholder="123 Business St&#10;Suite 100&#10;City, State 12345"><?php echo esc_textarea($options['address']); ?></textarea>
-                            <p class="description"><?php esc_html_e('Multi-line street address or location details.', 'ahm-core'); ?></p>
+                            <input type="text" id="ahm_address_line1" name="<?php echo esc_attr(self::OPTION_KEY); ?>[address_line1]" value="<?php echo esc_attr($options['address_line1']); ?>" class="large-text" placeholder="e.g. RJAH, Ludlow Wing" />
+                            <p class="description"><?php esc_html_e('Hospital, building, or practice name line.', 'ahm-core'); ?></p>
                         </td>
                     </tr>
 
                     <tr>
                         <th scope="row">
-                            <label for="ahm_maps_url"><?php esc_html_e('Google Maps URL', 'ahm-core'); ?></label>
+                            <label for="ahm_address_line2"><?php esc_html_e('Town & Postcode', 'ahm-core'); ?></label>
+                        </th>
+                        <td>
+                            <input type="text" id="ahm_address_line2" name="<?php echo esc_attr(self::OPTION_KEY); ?>[address_line2]" value="<?php echo esc_attr($options['address_line2']); ?>" class="large-text" placeholder="e.g. Gobowen, Oswestry SY10 7AG" />
+                            <p class="description"><?php esc_html_e('Town, county, or postcode line.', 'ahm-core'); ?></p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row">
+                            <label for="ahm_address"><?php esc_html_e('Full Physical Address', 'ahm-core'); ?></label>
+                        </th>
+                        <td>
+                            <textarea id="ahm_address" name="<?php echo esc_attr(self::OPTION_KEY); ?>[address]" rows="4" class="large-text" placeholder="123 Business St&#10;Suite 100&#10;City, State 12345"><?php echo esc_textarea($options['address']); ?></textarea>
+                            <p class="description"><?php esc_html_e('Full multi-line street address or combined location details.', 'ahm-core'); ?></p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row">
+                            <label for="ahm_maps_url"><?php esc_html_e('Primary Google Maps URL', 'ahm-core'); ?></label>
                         </th>
                         <td>
                             <input type="url" id="ahm_maps_url" name="<?php echo esc_attr(self::OPTION_KEY); ?>[maps_url]" value="<?php echo esc_attr($options['maps_url']); ?>" class="large-text" placeholder="https://maps.app.goo.gl/..." />
-                            <p class="description"><?php esc_html_e('Google Maps share URL for your business location.', 'ahm-core'); ?></p>
+                            <p class="description"><?php esc_html_e('Primary Google Maps share URL for main business location.', 'ahm-core'); ?></p>
                         </td>
                     </tr>
+                </table>
+
+                <hr style="margin: 25px 0 15px 0; border:0; border-top:1px solid #e5e5e5;" />
+
+                <h3><?php esc_html_e('Practice Locations (Multi-Location Support)', 'ahm-core'); ?></h3>
+                <p class="description"><?php esc_html_e('Add up to 6 practice locations / consulting rooms. Access these in Elementor using the "AHM Location Details" dynamic tag.', 'ahm-core'); ?></p>
+
+                <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 15px; margin-top: 15px; margin-bottom: 20px;">
+                    <?php
+                    $locations = $options['locations'] ?? [];
+                    for ($i = 0; $i < 6; $i++) :
+                        $loc_name = esc_attr($locations[$i]['name'] ?? '');
+                        $loc_addr = esc_attr($locations[$i]['address'] ?? '');
+                        $loc_maps = esc_attr($locations[$i]['maps_url'] ?? '');
+                        $num = $i + 1;
+                        ?>
+                        <div style="background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px 15px;">
+                            <strong style="display:block; margin-bottom: 8px; color: #1d2327; font-size: 13px;">
+                                <?php echo sprintf(esc_html__('Location %d', 'ahm-core'), $num); ?>
+                            </strong>
+                            <div style="margin-bottom: 8px;">
+                                <label style="display:block; font-size: 11px; color:#646970; margin-bottom: 2px;"><?php esc_html_e('Facility / Hospital Name:', 'ahm-core'); ?></label>
+                                <input type="text" name="<?php echo esc_attr(self::OPTION_KEY); ?>[locations][<?php echo $i; ?>][name]" value="<?php echo $loc_name; ?>" class="widefat" placeholder="e.g. RJAH, Ludlow Wing" />
+                            </div>
+                            <div style="margin-bottom: 8px;">
+                                <label style="display:block; font-size: 11px; color:#646970; margin-bottom: 2px;"><?php esc_html_e('Town & Postcode:', 'ahm-core'); ?></label>
+                                <input type="text" name="<?php echo esc_attr(self::OPTION_KEY); ?>[locations][<?php echo $i; ?>][address]" value="<?php echo $loc_addr; ?>" class="widefat" placeholder="e.g. Gobowen, Oswestry SY10 7AG" />
+                            </div>
+                            <div>
+                                <label style="display:block; font-size: 11px; color:#646970; margin-bottom: 2px;"><?php esc_html_e('Google Maps Link (Optional):', 'ahm-core'); ?></label>
+                                <input type="url" name="<?php echo esc_attr(self::OPTION_KEY); ?>[locations][<?php echo $i; ?>][maps_url]" value="<?php echo $loc_maps; ?>" class="widefat" placeholder="https://maps.app.goo.gl/..." />
+                            </div>
+                        </div>
+                    <?php endfor; ?>
+                </div>
+
+                <table class="form-table" role="presentation">
 
                     <tr>
                         <th scope="row"><?php esc_html_e('Global Auto-Linking', 'ahm-core'); ?></th>
