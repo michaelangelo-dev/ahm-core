@@ -159,6 +159,42 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
         }
     }
 
+    class AHM_Elementor_GMC_Number_Text_Tag extends \Elementor\Core\DynamicTags\Tag
+    {
+        public function get_name(): string
+        {
+            return 'ahm-gmc-number-text-tag';
+        }
+
+        public function get_title(): string
+        {
+            return __('AHM GMC Number', 'ahm-core');
+        }
+
+        public function get_group(): array
+        {
+            return ['ahm-contact-info'];
+        }
+
+        public function get_categories(): array
+        {
+            return [
+                \Elementor\Modules\DynamicTags\Module::TEXT_CATEGORY,
+                \Elementor\Modules\DynamicTags\Module::POST_META_CATEGORY,
+            ];
+        }
+
+        public function render(): void
+        {
+            $saved      = \AHM_Contact_Info::get_options();
+            $gmc_number = $saved['gmc_number'] ?? '';
+
+            if (! empty($gmc_number)) {
+                echo esc_html((string) $gmc_number);
+            }
+        }
+    }
+
     class AHM_Elementor_Address_Line1_Tag extends \Elementor\Core\DynamicTags\Data_Tag
     {
         public function get_name(): string

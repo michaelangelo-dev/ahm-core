@@ -57,6 +57,7 @@ final class AHM_Elementor_Dynamic_Tags
             $dynamic_tags_manager->register(new \AHM_Elementor_Phone_Url_Tag());
             $dynamic_tags_manager->register(new \AHM_Elementor_Email_Text_Tag());
             $dynamic_tags_manager->register(new \AHM_Elementor_Email_Url_Tag());
+            $dynamic_tags_manager->register(new \AHM_Elementor_GMC_Number_Text_Tag());
             $dynamic_tags_manager->register(new \AHM_Elementor_Address_Line1_Tag());
             $dynamic_tags_manager->register(new \AHM_Elementor_Address_Line2_Tag());
             $dynamic_tags_manager->register(new \AHM_Elementor_Address_Text_Tag());

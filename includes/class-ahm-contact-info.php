@@ -68,7 +68,7 @@ final class AHM_Contact_Info
     /**
      * Retrieve stored contact info options with default values.
      *
-     * @return array{phone: string, email: string, address_line1: string, address_line2: string, address: string, maps_url: string, locations: array<int, array{name: string, address: string, maps_url: string}>, auto_link_all_emails: bool, auto_link_all_phones: bool}
+     * @return array{phone: string, email: string, gmc_number: string, address_line1: string, address_line2: string, address: string, maps_url: string, locations: array<int, array{name: string, address: string, maps_url: string}>, auto_link_all_emails: bool, auto_link_all_phones: bool}
      */
     public static function get_options(): array
     {
@@ -77,6 +77,7 @@ final class AHM_Contact_Info
         $defaults = [
             'phone'                => '',
             'email'                => '',
+            'gmc_number'           => '',
             'address_line1'        => '',
             'address_line2'        => '',
             'address'              => '',
@@ -198,6 +199,7 @@ final class AHM_Contact_Info
         $sanitized = [
             'phone'                => '',
             'email'                => '',
+            'gmc_number'           => '',
             'address_line1'        => '',
             'address_line2'        => '',
             'address'              => '',
@@ -217,6 +219,10 @@ final class AHM_Contact_Info
 
         if (isset($input['email'])) {
             $sanitized['email'] = sanitize_email((string) $input['email']);
+        }
+
+        if (isset($input['gmc_number'])) {
+            $sanitized['gmc_number'] = sanitize_text_field((string) $input['gmc_number']);
         }
 
         if (isset($input['address_line1'])) {
@@ -510,6 +516,16 @@ final class AHM_Contact_Info
 
                     <tr>
                         <th scope="row">
+                            <label for="ahm_gmc_number"><?php esc_html_e('GMC Number', 'ahm-core'); ?></label>
+                        </th>
+                        <td>
+                            <input type="text" id="ahm_gmc_number" name="<?php echo esc_attr(self::OPTION_KEY); ?>[gmc_number]" value="<?php echo esc_attr($options['gmc_number'] ?? ''); ?>" class="regular-text" placeholder="e.g. 1234567" />
+                            <p class="description"><?php esc_html_e('General Medical Council (GMC) registration number.', 'ahm-core'); ?></p>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row">
                             <label for="ahm_address_line1"><?php esc_html_e('Hospital / Facility Name', 'ahm-core'); ?></label>
                         </th>
                         <td>
@@ -640,6 +656,14 @@ final class AHM_Contact_Info
                         <td><?php esc_html_e('Outputs email address wrapped in a clickable mailto link with inherited font styling.', 'ahm-core'); ?></td>
                     </tr>
                     <tr>
+                        <td><code>[ahm_gmc]</code> / <code>[ahm_gmc_number]</code></td>
+                        <td><?php esc_html_e('Outputs plain GMC registration number.', 'ahm-core'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>[ahm_gmc link="true"]</code></td>
+                        <td><?php esc_html_e('Outputs GMC number wrapped in an external link to the GMC Medical Register.', 'ahm-core'); ?></td>
+                    </tr>
+                    <tr>
                         <td><code>[ahm_address]</code></td>
                         <td><?php esc_html_e('Outputs formatted physical address with line breaks.', 'ahm-core'); ?></td>
                     </tr>
@@ -656,8 +680,12 @@ final class AHM_Contact_Info
                         <td><?php esc_html_e('Outputs a clickable hyperlink labeled "View on Google Maps".', 'ahm-core'); ?></td>
                     </tr>
                     <tr>
-                        <td><code>[ahm_contact field="phone|email|address|maps_url"]</code></td>
+                        <td><code>[ahm_contact field="phone|email|gmc|address|maps_url"]</code></td>
                         <td><?php esc_html_e('Unified shortcode syntax with optional link="true" parameter.', 'ahm-core'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>before="..." after="..." fallback="..."</code></td>
+                        <td><?php esc_html_e('Shortcodes accept before, after, and fallback attributes for prefixing, suffixing, or default fallback text when empty.', 'ahm-core'); ?></td>
                     </tr>
                 </tbody>
             </table>
@@ -673,28 +701,56 @@ final class AHM_Contact_Info
     {
         add_shortcode('ahm_phone', [$this, 'shortcode_phone']);
         add_shortcode('ahm_email', [$this, 'shortcode_email']);
+        add_shortcode('ahm_gmc', [$this, 'shortcode_gmc_number']);
+        add_shortcode('ahm_gmc_number', [$this, 'shortcode_gmc_number']);
         add_shortcode('ahm_address', [$this, 'shortcode_address']);
         add_shortcode('ahm_maps_url', [$this, 'shortcode_maps_url']);
         add_shortcode('ahm_contact', [$this, 'shortcode_unified']);
     }
 
     /**
-     * [ahm_phone link="true|false" text="Custom Text"]
+     * Wrap shortcode output with optional before, after, and fallback strings.
+     *
+     * @param string $output The formatted shortcode string (or empty if option value is missing).
+     * @param array<string, mixed> $parsed The parsed shortcode attributes array.
+     * @return string
+     */
+    private function wrap_shortcode_output(string $output, array $parsed): string
+    {
+        $before   = isset($parsed['before']) ? (string) $parsed['before'] : '';
+        $after    = isset($parsed['after']) ? (string) $parsed['after'] : '';
+        $fallback = isset($parsed['fallback']) ? (string) $parsed['fallback'] : '';
+
+        if ($output === '') {
+            if ($fallback !== '') {
+                return $before . $fallback . $after;
+            }
+            return '';
+        }
+
+        return $before . $output . $after;
+    }
+
+    /**
+     * [ahm_phone link="true|false" text="Custom Text" before="" after="" fallback=""]
      *
      * @param array<string, mixed>|string $atts
      */
     public function shortcode_phone(array|string $atts = []): string
     {
         $parsed = shortcode_atts([
-            'link' => 'false',
-            'text' => '',
+            'link'     => 'false',
+            'text'     => '',
+            'before'   => '',
+            'after'    => '',
+            'fallback' => '',
         ], (array) $atts, 'ahm_phone');
 
         $options = self::get_options();
         $phone   = $options['phone'];
 
         if (empty($phone)) {
-            return '';
+            return $this->wrap_shortcode_output('', $parsed);
         }
 
         $uk_phone     = self::format_uk_phone($phone);
@@ -702,59 +758,107 @@ final class AHM_Contact_Info
         $is_link      = filter_var($parsed['link'], FILTER_VALIDATE_BOOLEAN);
 
         if ($is_link) {
-            return sprintf(
+            $res = sprintf(
                 '<a href="%s" class="ahm-contact-link ahm-contact-phone-link">%s</a>',
                 esc_url($uk_phone['tel']),
                 $display_text
             );
+            return $this->wrap_shortcode_output($res, $parsed);
         }
 
-        return $display_text;
+        return $this->wrap_shortcode_output($display_text, $parsed);
     }
 
     /**
-     * [ahm_email link="true|false" text="Custom Text"]
+     * [ahm_email link="true|false" text="Custom Text" before="" after="" fallback=""]
      *
      * @param array<string, mixed>|string $atts
      */
     public function shortcode_email(array|string $atts = []): string
     {
         $parsed = shortcode_atts([
-            'link' => 'false',
-            'text' => '',
+            'link'     => 'false',
+            'text'     => '',
+            'before'   => '',
+            'after'    => '',
+            'fallback' => '',
         ], (array) $atts, 'ahm_email');
 
         $options = self::get_options();
         $email   = $options['email'];
 
         if (empty($email)) {
-            return '';
+            return $this->wrap_shortcode_output('', $parsed);
         }
 
         $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($email);
         $is_link      = filter_var($parsed['link'], FILTER_VALIDATE_BOOLEAN);
 
         if ($is_link) {
-            return sprintf(
+            $res = sprintf(
                 '<a href="%s" class="ahm-contact-link ahm-contact-email-link">%s</a>',
                 esc_url('mailto:' . $email),
                 $display_text
             );
+            return $this->wrap_shortcode_output($res, $parsed);
         }
 
-        return $display_text;
+        return $this->wrap_shortcode_output($display_text, $parsed);
     }
 
     /**
-     * [ahm_address link="true|false" raw="false|true"]
+     * [ahm_gmc link="true|false" text="Custom Text" before="" after="" fallback=""]
+     * [ahm_gmc_number link="true|false" text="Custom Text" before="" after="" fallback=""]
+     *
+     * @param array<string, mixed>|string $atts
+     */
+    public function shortcode_gmc_number(array|string $atts = []): string
+    {
+        $parsed = shortcode_atts([
+            'link'     => 'false',
+            'text'     => '',
+            'before'   => '',
+            'after'    => '',
+            'fallback' => '',
+        ], (array) $atts, 'ahm_gmc');
+
+        $options    = self::get_options();
+        $gmc_number = $options['gmc_number'] ?? '';
+
+        if (empty($gmc_number)) {
+            return $this->wrap_shortcode_output('', $parsed);
+        }
+
+        $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($gmc_number);
+        $is_link      = filter_var($parsed['link'], FILTER_VALIDATE_BOOLEAN);
+
+        if ($is_link) {
+            $digits  = preg_replace('/\D/', '', $gmc_number);
+            $gmc_url = ! empty($digits) ? 'https://www.gmc-uk.org/doctors/' . $digits : 'https://www.gmc-uk.org/doctors/';
+            $res     = sprintf(
+                '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-gmc-link">%s</a>',
+                esc_url($gmc_url),
+                $display_text
+            );
+            return $this->wrap_shortcode_output($res, $parsed);
+        }
+
+        return $this->wrap_shortcode_output($display_text, $parsed);
+    }
+
+    /**
+     * [ahm_address link="true|false" raw="false|true" before="" after="" fallback=""]
      *
      * @param array<string, mixed>|string $atts
      */
     public function shortcode_address(array|string $atts = []): string
     {
         $parsed = shortcode_atts([
-            'link' => 'false',
-            'raw'  => 'false',
+            'link'     => 'false',
+            'raw'      => 'false',
+            'before'   => '',
+            'after'    => '',
+            'fallback' => '',
         ], (array) $atts, 'ahm_address');
 
         $options  = self::get_options();
@@ -762,7 +866,7 @@ final class AHM_Contact_Info
         $maps_url = $options['maps_url'];
 
         if (empty($address)) {
-            return '';
+            return $this->wrap_shortcode_output('', $parsed);
         }
 
         $is_raw  = filter_var($parsed['raw'], FILTER_VALIDATE_BOOLEAN);
@@ -771,72 +875,81 @@ final class AHM_Contact_Info
         $formatted = $is_raw ? esc_html($address) : nl2br(esc_html($address));
 
         if ($is_link && ! empty($maps_url)) {
-            return sprintf(
+            $res = sprintf(
                 '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-address-link">%s</a>',
                 esc_url($maps_url),
                 $formatted
             );
+            return $this->wrap_shortcode_output($res, $parsed);
         }
 
-        return $formatted;
+        return $this->wrap_shortcode_output($formatted, $parsed);
     }
 
     /**
-     * [ahm_maps_url link="true|false" text="View on Google Maps"]
+     * [ahm_maps_url link="true|false" text="View on Google Maps" before="" after="" fallback=""]
      *
      * @param array<string, mixed>|string $atts
      */
     public function shortcode_maps_url(array|string $atts = []): string
     {
         $parsed = shortcode_atts([
-            'link' => 'false',
-            'text' => __('View on Google Maps', 'ahm-core'),
+            'link'     => 'false',
+            'text'     => __('View on Google Maps', 'ahm-core'),
+            'before'   => '',
+            'after'    => '',
+            'fallback' => '',
         ], (array) $atts, 'ahm_maps_url');
 
         $options  = self::get_options();
         $maps_url = $options['maps_url'];
 
         if (empty($maps_url)) {
-            return '';
+            return $this->wrap_shortcode_output('', $parsed);
         }
 
         $is_link = filter_var($parsed['link'], FILTER_VALIDATE_BOOLEAN);
 
         if ($is_link) {
             $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($maps_url);
-            return sprintf(
+            $res          = sprintf(
                 '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-maps-link">%s</a>',
                 esc_url($maps_url),
                 $display_text
             );
+            return $this->wrap_shortcode_output($res, $parsed);
         }
 
-        return esc_url($maps_url);
+        return $this->wrap_shortcode_output(esc_url($maps_url), $parsed);
     }
 
     /**
      * Unified shortcode syntax:
-     * [ahm_contact field="phone|email|address|maps_url" link="true|false"]
+     * [ahm_contact field="phone|email|gmc|address|maps_url" link="true|false" before="" after="" fallback=""]
      *
      * @param array<string, mixed>|string $atts
      */
     public function shortcode_unified(array|string $atts = []): string
     {
         $parsed = shortcode_atts([
-            'field' => 'phone',
-            'link'  => 'false',
-            'text'  => '',
-            'raw'   => 'false',
+            'field'    => 'phone',
+            'link'     => 'false',
+            'text'     => '',
+            'raw'      => 'false',
+            'before'   => '',
+            'after'    => '',
+            'fallback' => '',
         ], (array) $atts, 'ahm_contact');
 
         $field = strtolower(trim((string) $parsed['field']));
 
         return match ($field) {
-            'phone'            => $this->shortcode_phone($parsed),
-            'email'            => $this->shortcode_email($parsed),
-            'address'          => $this->shortcode_address($parsed),
-            'maps_url', 'maps' => $this->shortcode_maps_url($parsed),
-            default            => '',
+            'phone'                           => $this->shortcode_phone($parsed),
+            'email'                           => $this->shortcode_email($parsed),
+            'gmc', 'gmc_number', 'gmc-number' => $this->shortcode_gmc_number($parsed),
+            'address'                         => $this->shortcode_address($parsed),
+            'maps_url', 'maps'                => $this->shortcode_maps_url($parsed),
+            default                           => '',
         };
     }
 }
