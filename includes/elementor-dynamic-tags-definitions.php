@@ -15,7 +15,7 @@ if (! defined('ABSPATH')) {
 
 if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\Core\DynamicTags\Tag')) {
 
-    class AHM_Elementor_Phone_Text_Tag extends \Elementor\Core\DynamicTags\Data_Tag
+    class AHM_Elementor_Phone_Text_Tag extends \Elementor\Core\DynamicTags\Tag
     {
         public function get_name(): string
         {
@@ -40,17 +40,17 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
             ];
         }
 
-        public function get_value(array $options = []): string
+        public function render(): void
         {
             $saved = \AHM_Contact_Info::get_options();
-            $phone = $saved['phone'];
+            $phone = $saved['phone'] ?? '';
 
             if (empty($phone)) {
-                return '';
+                return;
             }
 
             $uk_phone = \AHM_Contact_Info::format_uk_phone($phone);
-            return (string) $uk_phone['display'];
+            echo esc_html((string) $uk_phone['display']);
         }
     }
 
