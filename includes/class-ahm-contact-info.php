@@ -76,6 +76,7 @@ final class AHM_Contact_Info
 
         $defaults = [
             'phone'                => '',
+            'phone_format_intl'    => false,
             'email'                => '',
             'gmc_number'           => '',
             'address_line1'        => '',
@@ -117,41 +118,45 @@ final class AHM_Contact_Info
      * Helper to format phone number into UK standard layout if starting with +44 or 0.
      *
      * @param string $phone Raw phone string.
+     * @param bool|null $override_intl Optional explicit override for international formatting (+44).
      * @return array{display: string, tel: string, raw_digits: string}
      */
-    public static function format_uk_phone(string $phone): array
+    public static function format_uk_phone(string $phone, ?bool $override_intl = null): array
     {
         $trimmed = trim($phone);
         if (empty($trimmed)) {
             return ['display' => '', 'tel' => '', 'raw_digits' => ''];
         }
 
+        $saved_options = self::get_options();
+        $use_intl      = null !== $override_intl ? $override_intl : ! empty($saved_options['phone_format_intl']);
+
+        $digits        = (string) preg_replace('/\D/', '', $trimmed);
         $has_plus_44   = str_starts_with($trimmed, '+44');
         $starts_with_0 = str_starts_with($trimmed, '0');
 
-        $digits = preg_replace('/\D/', '', $trimmed);
         $display = $trimmed;
-        $tel = 'tel:' . ($has_plus_44 ? '+' . $digits : $digits);
+        $tel     = 'tel:' . ($has_plus_44 ? '+' . $digits : $digits);
 
-        if ($has_plus_44 || $starts_with_0) {
-            $national_digits = ($has_plus_44 && str_starts_with($digits, '44')) ? '0' . substr($digits, 2) : $digits;
-
-            // International tel: link (+44...)
-            if (str_starts_with($national_digits, '0')) {
-                $tel = 'tel:+44' . substr($national_digits, 1);
-            } else {
-                $tel = 'tel:+' . $digits;
+        if ($has_plus_44 || $starts_with_0 || str_starts_with($digits, '44')) {
+            $national_digits = (str_starts_with($digits, '44')) ? '0' . substr($digits, 2) : $digits;
+            if (! str_starts_with($national_digits, '0')) {
+                $national_digits = '0' . $national_digits;
             }
 
-            $len = strlen($national_digits);
-            if ($has_plus_44) {
-                $intl_digits = substr($national_digits, 1);
-                if (str_starts_with($national_digits, '02') && strlen($intl_digits) >= 10) {
-                    $display = '+44 ' . substr($intl_digits, 0, 2) . ' ' . substr($intl_digits, 2, 4) . ' ' . substr($intl_digits, 6);
-                } elseif (strlen($intl_digits) >= 10) {
-                    $display = '+44 ' . substr($intl_digits, 0, 4) . ' ' . substr($intl_digits, 4);
+            // International tel: link (+44...)
+            $tel = 'tel:+44' . substr($national_digits, 1);
+
+            $len         = strlen($national_digits);
+            $body_digits = substr($national_digits, 1);
+
+            if ($use_intl) {
+                if (str_starts_with($national_digits, '02') && strlen($body_digits) >= 10) {
+                    $display = '+44 ' . substr($body_digits, 0, 2) . ' ' . substr($body_digits, 2, 4) . ' ' . substr($body_digits, 6);
+                } elseif (strlen($body_digits) >= 10) {
+                    $display = '+44 ' . substr($body_digits, 0, 4) . ' ' . substr($body_digits, 4);
                 } else {
-                    $display = '+44 ' . $intl_digits;
+                    $display = '+44 ' . $body_digits;
                 }
             } else {
                 if (str_starts_with($national_digits, '02') && $len === 11) {
@@ -253,6 +258,7 @@ final class AHM_Contact_Info
         }
         $sanitized['locations'] = $sanitized_locations;
 
+        $sanitized['phone_format_intl']    = ! empty($input['phone_format_intl']);
         $sanitized['auto_link_all_emails'] = ! empty($input['auto_link_all_emails']);
         $sanitized['auto_link_all_phones'] = ! empty($input['auto_link_all_phones']);
 
@@ -500,7 +506,12 @@ final class AHM_Contact_Info
                         </th>
                         <td>
                             <input type="text" id="ahm_phone" name="<?php echo esc_attr(self::OPTION_KEY); ?>[phone]" value="<?php echo esc_attr($options['phone']); ?>" class="regular-text" placeholder="+44 7700 900123 or 07700 900123" />
-                            <p class="description"><?php esc_html_e('Contact phone number. Numbers starting with +44 or 0 will automatically format into UK standard layout.', 'ahm-core'); ?></p>
+                            <br />
+                            <label for="ahm_phone_format_intl" style="margin-top:6px; display:inline-block;">
+                                <input type="checkbox" id="ahm_phone_format_intl" name="<?php echo esc_attr(self::OPTION_KEY); ?>[phone_format_intl]" value="1" <?php checked(! empty($options['phone_format_intl'])); ?> />
+                                <strong><?php esc_html_e('Format Display as +44 (International UK Format)', 'ahm-core'); ?></strong>
+                            </label>
+                            <p class="description"><?php esc_html_e('If checked, displays with +44 prefix (e.g. +44 1656 857878). If unchecked, displays with 0 prefix (e.g. 01656 857878).', 'ahm-core'); ?></p>
                         </td>
                     </tr>
 
