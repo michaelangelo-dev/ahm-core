@@ -69,6 +69,7 @@ final class AHM_Site_Utilities
             'block_author_enum'           => true,
             'block_empty_author_archives' => true,
             'prevent_cpt_404'             => true,
+            'dynamic_treatment_form_options' => true,
         ];
 
         $saved = get_option(self::OPTION_KEY, []);
@@ -112,6 +113,7 @@ final class AHM_Site_Utilities
             'block_author_enum',
             'block_empty_author_archives',
             'prevent_cpt_404',
+            'dynamic_treatment_form_options',
         ];
 
         $sanitized = [];
@@ -166,6 +168,11 @@ final class AHM_Site_Utilities
         // 6. CPT 404 Prevention for ACF Post Types
         if (! empty($options['prevent_cpt_404'])) {
             add_action('generate_rewrite_rules', [$this, 'ensure_acf_post_types_registered'], 1);
+        }
+
+        // 7. Dynamic Treatment Options for Elementor Pro Forms
+        if (! empty($options['dynamic_treatment_form_options'])) {
+            add_filter('elementor_pro/forms/render/item/select', [$this, 'populate_treatment_select_options'], 10, 3);
         }
     }
 
@@ -349,6 +356,48 @@ final class AHM_Site_Utilities
         }
     }
 
+    /**
+     * Dynamically populates Elementor Form select fields matching custom_id 'treatment' or label 'Treatment'
+     * with published Treatment CPT posts, preserving Post Types Order sorting.
+     *
+     * @param array<string, mixed> $item Form field settings item.
+     * @param int $item_index Index of the field item.
+     * @param object $widget Elementor form widget instance.
+     * @return array<string, mixed> Modified field settings.
+     */
+    public function populate_treatment_select_options(array $item, int $item_index, object $widget): array
+    {
+        $custom_id = strtolower((string) ($item['custom_id'] ?? ''));
+
+        if ($custom_id === 'treatment' || $custom_id === 'field_treatment') {
+            $treatments = get_posts([
+                'post_type'          => 'treatment',
+                'posts_per_page'     => -1,
+                'post_status'        => 'publish',
+                'orderby'            => [
+                    'menu_order' => 'ASC',
+                    'date'       => 'DESC',
+                    'ID'         => 'DESC',
+                ],
+                'suppress_filters'   => false, // Enables Post Types Order plugin filter
+                'ignore_custom_sort' => false, // Forces PTO custom sort if plugin active
+            ]);
+
+            $options   = [];
+            $options[] = 'Select treatment|';
+
+            if (! empty($treatments)) {
+                foreach ($treatments as $post) {
+                    $title     = get_the_title($post->ID);
+                    $options[] = esc_html($title) . '|' . esc_html($title);
+                }
+                $item['field_options'] = implode("\n", $options);
+            }
+        }
+
+        return $item;
+    }
+
     /*--------------------------------------------------------------
      * Admin Tab Renderer
      *------------------------------------------------------------*/
@@ -439,6 +488,18 @@ final class AHM_Site_Utilities
                                 <strong><?php esc_html_e('Prevent ACF Custom Post Type 404 Errors', 'ahm-core'); ?></strong>
                                 <br />
                                 <span class="description"><?php esc_html_e('Ensures all ACF Custom Post Types are dynamically registered prior to rewrite rule compilation to prevent 404 permalink issues.', 'ahm-core'); ?></span>
+                            </label>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Elementor Forms', 'ahm-core'); ?></th>
+                        <td>
+                            <label for="ahm_dynamic_treatment_form_options">
+                                <input type="checkbox" id="ahm_dynamic_treatment_form_options" name="<?php echo esc_attr(self::OPTION_KEY); ?>[dynamic_treatment_form_options]" value="1" <?php checked(! empty($options['dynamic_treatment_form_options'])); ?> />
+                                <strong><?php esc_html_e('Dynamic Treatment Options for Select Fields', 'ahm-core'); ?></strong>
+                                <br />
+                                <span class="description"><?php esc_html_e('Automatically populates Elementor form select fields having Custom ID "treatment" or Label "Treatment" with published Treatments in Post Types Order menu order.', 'ahm-core'); ?></span>
                             </label>
                         </td>
                     </tr>
