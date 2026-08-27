@@ -3,7 +3,7 @@
 /**
  * Plugin Name:       AHM Core
  * Description:       Core functionality for AHM sites. Protected from deactivation/deletion via the admin UI. Provides "Quick User Create", "Image Converter" (auto WebP), and "Cache Manager" tools.
- * Version:           3.2.0
+ * Version:           3.2.1
  * Author:            AHM
  * Requires at least: 6.0
  * Requires PHP:      8.0
