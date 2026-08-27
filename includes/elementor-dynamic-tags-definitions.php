@@ -197,7 +197,7 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
         }
     }
 
-    class AHM_Elementor_Address_Line1_Tag extends \Elementor\Core\DynamicTags\Data_Tag
+    class AHM_Elementor_Address_Line1_Tag extends \Elementor\Core\DynamicTags\Tag
     {
         public function get_name(): string
         {
@@ -222,14 +222,18 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
             ];
         }
 
-        public function get_value(array $options = []): string
+        public function render(): void
         {
             $saved = \AHM_Contact_Info::get_options();
-            return (string) ($saved['address_line1'] ?? '');
+            $line1 = (string) ($saved['address_line1'] ?? '');
+
+            if (! empty($line1)) {
+                echo esc_html($line1);
+            }
         }
     }
 
-    class AHM_Elementor_Address_Line2_Tag extends \Elementor\Core\DynamicTags\Data_Tag
+    class AHM_Elementor_Address_Line2_Tag extends \Elementor\Core\DynamicTags\Tag
     {
         public function get_name(): string
         {
@@ -254,14 +258,18 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
             ];
         }
 
-        public function get_value(array $options = []): string
+        public function render(): void
         {
             $saved = \AHM_Contact_Info::get_options();
-            return (string) ($saved['address_line2'] ?? '');
+            $line2 = (string) ($saved['address_line2'] ?? '');
+
+            if (! empty($line2)) {
+                echo esc_html($line2);
+            }
         }
     }
 
-    class AHM_Elementor_Address_Text_Tag extends \Elementor\Core\DynamicTags\Data_Tag
+    class AHM_Elementor_Address_Text_Tag extends \Elementor\Core\DynamicTags\Tag
     {
         public function get_name(): string
         {
@@ -286,17 +294,18 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
             ];
         }
 
-        public function get_value(array $options = []): string
+        public function render(): void
         {
             $saved   = \AHM_Contact_Info::get_options();
             $address = $saved['address'] ?? '';
 
             if (empty($address)) {
-                return '';
+                return;
             }
 
             // Convert newlines to clean comma-separated single line string for inputs & maps
-            return (string) preg_replace('/\s*[\r\n]+\s*/', ', ', trim((string) $address));
+            $formatted = (string) preg_replace('/\s*[\r\n]+\s*/', ', ', trim((string) $address));
+            echo esc_html($formatted);
         }
     }
 
@@ -319,11 +328,7 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
 
         public function get_categories(): array
         {
-            return [
-                \Elementor\Modules\DynamicTags\Module::URL_CATEGORY,
-                \Elementor\Modules\DynamicTags\Module::TEXT_CATEGORY,
-                \Elementor\Modules\DynamicTags\Module::POST_META_CATEGORY,
-            ];
+            return [\Elementor\Modules\DynamicTags\Module::URL_CATEGORY];
         }
 
         public function get_value(array $options = []): string
@@ -354,11 +359,7 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
 
         public function get_categories(): array
         {
-            return [
-                \Elementor\Modules\DynamicTags\Module::URL_CATEGORY,
-                \Elementor\Modules\DynamicTags\Module::TEXT_CATEGORY,
-                \Elementor\Modules\DynamicTags\Module::POST_META_CATEGORY,
-            ];
+            return [\Elementor\Modules\DynamicTags\Module::URL_CATEGORY];
         }
 
         public function get_value(array $options = []): string
@@ -417,7 +418,7 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
     /**
      * Dynamic Tag for outputting post title or ACF alternate title without HTML bold wrappers.
      */
-    class AHM_Elementor_Custom_Title_Tag extends \Elementor\Core\DynamicTags\Data_Tag
+    class AHM_Elementor_Custom_Title_Tag extends \Elementor\Core\DynamicTags\Tag
     {
         public function get_name(): string
         {
@@ -442,7 +443,7 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
             ];
         }
 
-        public function get_value(array $options = []): string
+        public function render(): void
         {
             $title = get_the_title();
 
@@ -451,7 +452,9 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
                 $title     = ! empty($acf_field) ? (string) $acf_field : $title;
             }
 
-            return (string) $title;
+            if (! empty($title)) {
+                echo esc_html((string) $title);
+            }
         }
     }
 
@@ -477,11 +480,7 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
 
         public function get_categories(): array
         {
-            return [
-                \Elementor\Modules\DynamicTags\Module::URL_CATEGORY,
-                \Elementor\Modules\DynamicTags\Module::TEXT_CATEGORY,
-                \Elementor\Modules\DynamicTags\Module::POST_META_CATEGORY,
-            ];
+            return [\Elementor\Modules\DynamicTags\Module::URL_CATEGORY];
         }
 
         protected function register_controls(): void

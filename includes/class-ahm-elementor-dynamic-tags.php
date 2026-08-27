@@ -39,6 +39,10 @@ final class AHM_Elementor_Dynamic_Tags
      */
     public function register_dynamic_tags(mixed $dynamic_tags_manager): void
     {
+        if (! did_action('elementor/loaded')) {
+            return;
+        }
+
         if (! class_exists('\Elementor\Core\DynamicTags\Tag') || ! class_exists('\Elementor\Core\DynamicTags\Data_Tag')) {
             return;
         }
