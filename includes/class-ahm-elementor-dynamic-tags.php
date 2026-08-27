@@ -39,6 +39,10 @@ final class AHM_Elementor_Dynamic_Tags
      */
     public function register_dynamic_tags(mixed $dynamic_tags_manager): void
     {
+        if (! did_action('elementor/loaded')) {
+            return;
+        }
+
         if (! class_exists('\Elementor\Core\DynamicTags\Tag') || ! class_exists('\Elementor\Core\DynamicTags\Data_Tag')) {
             return;
         }
@@ -62,6 +66,7 @@ final class AHM_Elementor_Dynamic_Tags
             $dynamic_tags_manager->register(new \AHM_Elementor_Address_Line2_Tag());
             $dynamic_tags_manager->register(new \AHM_Elementor_Address_Text_Tag());
             $dynamic_tags_manager->register(new \AHM_Elementor_Maps_Url_Tag());
+            $dynamic_tags_manager->register(new \AHM_Elementor_Booking_Url_Tag());
         }
 
         if (class_exists('AHM_Elementor_Reading_Time_Tag')) {
@@ -78,6 +83,10 @@ final class AHM_Elementor_Dynamic_Tags
 
         if (class_exists('AHM_Elementor_Multi_Location_Tag')) {
             $dynamic_tags_manager->register(new \AHM_Elementor_Multi_Location_Tag());
+        }
+
+        if (class_exists('AHM_Elementor_Multi_Location_Url_Tag')) {
+            $dynamic_tags_manager->register(new \AHM_Elementor_Multi_Location_Url_Tag());
         }
     }
 }

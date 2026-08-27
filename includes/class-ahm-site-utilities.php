@@ -170,9 +170,10 @@ final class AHM_Site_Utilities
             add_action('generate_rewrite_rules', [$this, 'ensure_acf_post_types_registered'], 1);
         }
 
-        // 7. Dynamic Treatment Options for Elementor Pro Forms
+        // 7. Dynamic Form Options for Elementor Pro Forms
         if (! empty($options['dynamic_treatment_form_options'])) {
             add_filter('elementor_pro/forms/render/item/select', [$this, 'populate_treatment_select_options'], 10, 3);
+            add_filter('elementor_pro/forms/render/item/select', [$this, 'populate_location_select_options'], 10, 3);
         }
     }
 
@@ -390,6 +391,53 @@ final class AHM_Site_Utilities
                 foreach ($treatments as $post) {
                     $title     = get_the_title($post->ID);
                     $options[] = esc_html($title) . '|' . esc_html($title);
+                }
+                $item['field_options'] = implode("\n", $options);
+            }
+        }
+
+        return $item;
+    }
+
+    /**
+     * Dynamically populates Elementor Form select fields matching custom_id 'location', 'field_location', 'facility', or 'field_facility'
+     * with saved Hospital / Facility names from AHM Contact Info settings.
+     *
+     * @param array<string, mixed> $item Form field settings item.
+     * @param int $item_index Index of the field item.
+     * @param object $widget Elementor form widget instance.
+     * @return array<string, mixed> Modified field settings.
+     */
+    public function populate_location_select_options(array $item, int $item_index, object $widget): array
+    {
+        $custom_id = strtolower((string) ($item['custom_id'] ?? ''));
+
+        if (in_array($custom_id, ['location', 'field_location', 'facility', 'field_facility', 'hospital', 'field_hospital'], true)) {
+            $contact_info   = \AHM_Contact_Info::get_options();
+            $facility_names = [];
+
+            // Primary Hospital / Facility Name
+            if (! empty($contact_info['address_line1'])) {
+                $facility_names[] = trim((string) $contact_info['address_line1']);
+            }
+
+            // Practice Locations 1-6
+            if (! empty($contact_info['locations']) && is_array($contact_info['locations'])) {
+                foreach ($contact_info['locations'] as $loc) {
+                    if (! empty($loc['name'])) {
+                        $facility_names[] = trim((string) $loc['name']);
+                    }
+                }
+            }
+
+            $facility_names = array_unique(array_filter($facility_names));
+
+            $options   = [];
+            $options[] = 'Select location|';
+
+            if (! empty($facility_names)) {
+                foreach ($facility_names as $name) {
+                    $options[] = esc_html($name) . '|' . esc_html($name);
                 }
                 $item['field_options'] = implode("\n", $options);
             }
