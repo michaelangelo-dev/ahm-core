@@ -90,7 +90,7 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
         }
     }
 
-    class AHM_Elementor_Email_Text_Tag extends \Elementor\Core\DynamicTags\Data_Tag
+    class AHM_Elementor_Email_Text_Tag extends \Elementor\Core\DynamicTags\Tag
     {
         public function get_name(): string
         {
@@ -115,12 +115,14 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
             ];
         }
 
-        public function get_value(array $options = []): string
+        public function render(): void
         {
             $saved = \AHM_Contact_Info::get_options();
-            $email = $saved['email'];
+            $email = $saved['email'] ?? '';
 
-            return ! empty($email) ? (string) $email : '';
+            if (! empty($email)) {
+                echo esc_html((string) $email);
+            }
         }
     }
 
@@ -333,6 +335,39 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
         }
     }
 
+    class AHM_Elementor_Booking_Url_Tag extends \Elementor\Core\DynamicTags\Data_Tag
+    {
+        public function get_name(): string
+        {
+            return 'ahm-booking-url-tag';
+        }
+
+        public function get_title(): string
+        {
+            return __('AHM Booking URL', 'ahm-core');
+        }
+
+        public function get_group(): array
+        {
+            return ['ahm-contact-info'];
+        }
+
+        public function get_categories(): array
+        {
+            return [
+                \Elementor\Modules\DynamicTags\Module::URL_CATEGORY,
+                \Elementor\Modules\DynamicTags\Module::TEXT_CATEGORY,
+                \Elementor\Modules\DynamicTags\Module::POST_META_CATEGORY,
+            ];
+        }
+
+        public function get_value(array $options = []): string
+        {
+            $saved = \AHM_Contact_Info::get_options();
+            return (string) ($saved['booking_url'] ?? '');
+        }
+    }
+
     /**
      * Dynamic Tag for calculating and outputting estimated post reading time in minutes.
      * Output is raw integer string so label (e.g. "min read") can be added in Advanced "After" options.
@@ -481,9 +516,9 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
     }
 
     /**
-     * Dynamic Tag for selecting practice location index (Location 1-6) and field (Name, Address, Full, Maps URL).
+     * Dynamic Tag for selecting practice location text (Location 1-6) with native Before, After, and Fallback controls.
      */
-    class AHM_Elementor_Multi_Location_Tag extends \Elementor\Core\DynamicTags\Data_Tag
+    class AHM_Elementor_Multi_Location_Tag extends \Elementor\Core\DynamicTags\Tag
     {
         public function get_name(): string
         {
@@ -504,7 +539,6 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
         {
             return [
                 \Elementor\Modules\DynamicTags\Module::TEXT_CATEGORY,
-                \Elementor\Modules\DynamicTags\Module::URL_CATEGORY,
                 \Elementor\Modules\DynamicTags\Module::POST_META_CATEGORY,
             ];
         }
@@ -535,10 +569,164 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
                     'type'    => \Elementor\Controls_Manager::SELECT,
                     'default' => 'full',
                     'options' => [
-                        'name'     => __('Facility / Hospital Name', 'ahm-core'),
-                        'address'  => __('Town & Postcode', 'ahm-core'),
-                        'full'     => __('Full Combined Address', 'ahm-core'),
-                        'maps_url' => __('Google Maps URL', 'ahm-core'),
+                        'name'         => __('Facility / Hospital Name', 'ahm-core'),
+                        'address'      => __('Town & Postcode', 'ahm-core'),
+                        'phone'        => __('Phone Number (Formatted Display)', 'ahm-core'),
+                        'phone_link'   => __('Phone Link (Clickable HTML)', 'ahm-core'),
+                        'email'        => __('Email Address', 'ahm-core'),
+                        'email_link'   => __('Email Link (Clickable HTML)', 'ahm-core'),
+                        'full'         => __('Full Combined Address', 'ahm-core'),
+                        'maps_link'    => __('Google Maps Link (Clickable HTML)', 'ahm-core'),
+                        'booking_url'  => __('Booking URL', 'ahm-core'),
+                        'booking_link' => __('Booking Link (Clickable HTML)', 'ahm-core'),
+                    ],
+                ]
+            );
+        }
+
+        public function render(): void
+        {
+            $idx   = (int) ($this->get_settings('location_index') ?: 0);
+            $field = (string) ($this->get_settings('field_type') ?: 'full');
+
+            $saved     = \AHM_Contact_Info::get_options();
+            $locations = $saved['locations'] ?? [];
+
+            if (empty($locations[$idx])) {
+                return;
+            }
+
+            $loc = $locations[$idx];
+
+            if ($field === 'phone_link') {
+                $phone = (string) ($loc['phone'] ?? '');
+                if (empty($phone)) {
+                    return;
+                }
+                $uk_phone = \AHM_Contact_Info::format_uk_phone($phone);
+                if (empty($uk_phone['tel'])) {
+                    return;
+                }
+                echo sprintf(
+                    '<a href="%s" class="ahm-contact-link ahm-contact-phone-link">%s</a>',
+                    esc_url($uk_phone['tel']),
+                    esc_html($uk_phone['display'])
+                );
+                return;
+            }
+
+            if ($field === 'email_link') {
+                $email = (string) ($loc['email'] ?? '');
+                if (empty($email)) {
+                    return;
+                }
+                echo sprintf(
+                    '<a href="%s" class="ahm-contact-link ahm-contact-email-link">%s</a>',
+                    esc_url('mailto:' . $email),
+                    esc_html($email)
+                );
+                return;
+            }
+
+            if ($field === 'maps_link') {
+                $maps_url = (string) ($loc['maps_url'] ?? '');
+                if (empty($maps_url)) {
+                    return;
+                }
+                $label = trim(($loc['name'] ?? '') . ', ' . ($loc['address'] ?? ''), ', ');
+                $display = ! empty($label) ? $label : __('View on Google Maps', 'ahm-core');
+                echo sprintf(
+                    '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-maps-link">%s</a>',
+                    esc_url($maps_url),
+                    esc_html($display)
+                );
+                return;
+            }
+
+            if ($field === 'booking_link') {
+                $booking_url = (string) ($loc['booking_url'] ?? '');
+                if (empty($booking_url)) {
+                    return;
+                }
+                $display = __('Book an Appointment', 'ahm-core');
+                echo sprintf(
+                    '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-booking-link">%s</a>',
+                    esc_url($booking_url),
+                    esc_html($display)
+                );
+                return;
+            }
+
+            $output = match ($field) {
+                'name'        => (string) ($loc['name'] ?? ''),
+                'address'     => (string) ($loc['address'] ?? ''),
+                'phone'       => ! empty($loc['phone']) ? (string) \AHM_Contact_Info::format_uk_phone((string) $loc['phone'])['display'] : '',
+                'email'       => (string) ($loc['email'] ?? ''),
+                'booking_url' => (string) ($loc['booking_url'] ?? ''),
+                default       => trim(($loc['name'] ?? '') . ', ' . ($loc['address'] ?? ''), ', '),
+            };
+
+            if (! empty($output)) {
+                echo esc_html($output);
+            }
+        }
+    }
+
+    /**
+     * Dynamic Tag for selecting practice location URL / Action link (Maps URL, tel:, mailto:, Booking URL).
+     */
+    class AHM_Elementor_Multi_Location_Url_Tag extends \Elementor\Core\DynamicTags\Data_Tag
+    {
+        public function get_name(): string
+        {
+            return 'ahm-multi-location-url-tag';
+        }
+
+        public function get_title(): string
+        {
+            return __('AHM Location Link (URL)', 'ahm-core');
+        }
+
+        public function get_group(): array
+        {
+            return ['ahm-contact-info'];
+        }
+
+        public function get_categories(): array
+        {
+            return [\Elementor\Modules\DynamicTags\Module::URL_CATEGORY];
+        }
+
+        protected function register_controls(): void
+        {
+            $this->add_control(
+                'location_index',
+                [
+                    'label'   => __('Select Location', 'ahm-core'),
+                    'type'    => \Elementor\Controls_Manager::SELECT,
+                    'default' => '0',
+                    'options' => [
+                        '0' => __('Location 1', 'ahm-core'),
+                        '1' => __('Location 2', 'ahm-core'),
+                        '2' => __('Location 3', 'ahm-core'),
+                        '3' => __('Location 4', 'ahm-core'),
+                        '4' => __('Location 5', 'ahm-core'),
+                        '5' => __('Location 6', 'ahm-core'),
+                    ],
+                ]
+            );
+
+            $this->add_control(
+                'url_type',
+                [
+                    'label'   => __('Link Type', 'ahm-core'),
+                    'type'    => \Elementor\Controls_Manager::SELECT,
+                    'default' => 'maps_url',
+                    'options' => [
+                        'maps_url'     => __('Google Maps URL', 'ahm-core'),
+                        'phone_tel'    => __('Phone Link (tel:)', 'ahm-core'),
+                        'email_mailto' => __('Email Link (mailto:)', 'ahm-core'),
+                        'booking_url'  => __('Booking URL', 'ahm-core'),
                     ],
                 ]
             );
@@ -546,8 +734,8 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
 
         public function get_value(array $options = []): string
         {
-            $idx   = (int) ($this->get_settings('location_index') ?: 0);
-            $field = (string) ($this->get_settings('field_type') ?: 'full');
+            $idx  = (int) ($this->get_settings('location_index') ?: 0);
+            $type = (string) ($this->get_settings('url_type') ?: 'maps_url');
 
             $saved     = \AHM_Contact_Info::get_options();
             $locations = $saved['locations'] ?? [];
@@ -558,11 +746,11 @@ if (! class_exists('AHM_Elementor_Phone_Text_Tag') && class_exists('\Elementor\C
 
             $loc = $locations[$idx];
 
-            return match ($field) {
-                'name'     => (string) ($loc['name'] ?? ''),
-                'address'  => (string) ($loc['address'] ?? ''),
-                'maps_url' => (string) ($loc['maps_url'] ?? ''),
-                default    => trim(($loc['name'] ?? '') . ', ' . ($loc['address'] ?? ''), ', '),
+            return match ($type) {
+                'phone_tel'    => ! empty($loc['phone']) ? (string) \AHM_Contact_Info::format_uk_phone((string) $loc['phone'])['tel'] : '',
+                'email_mailto' => ! empty($loc['email']) ? 'mailto:' . (string) $loc['email'] : '',
+                'booking_url'  => (string) ($loc['booking_url'] ?? ''),
+                default        => (string) ($loc['maps_url'] ?? ''),
             };
         }
     }

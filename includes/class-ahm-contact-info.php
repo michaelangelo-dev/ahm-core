@@ -68,11 +68,18 @@ final class AHM_Contact_Info
     /**
      * Retrieve stored contact info options with default values.
      *
-     * @return array{phone: string, email: string, gmc_number: string, address_line1: string, address_line2: string, address: string, maps_url: string, locations: array<int, array{name: string, address: string, maps_url: string}>, auto_link_all_emails: bool, auto_link_all_phones: bool}
+     * @return array{phone: string, email: string, gmc_number: string, address_line1: string, address_line2: string, address: string, maps_url: string, booking_url: string, locations: array<int, array{name: string, address: string, phone: string, email: string, maps_url: string, booking_url: string}>, auto_link_all_emails: bool, auto_link_all_phones: bool}
      */
     public static function get_options(): array
     {
-        $default_locations = array_fill(0, 6, ['name' => '', 'address' => '', 'maps_url' => '']);
+        $default_locations = array_fill(0, 6, [
+            'name'        => '',
+            'address'     => '',
+            'phone'       => '',
+            'email'       => '',
+            'maps_url'    => '',
+            'booking_url' => '',
+        ]);
 
         $defaults = [
             'phone'                => '',
@@ -83,6 +90,7 @@ final class AHM_Contact_Info
             'address_line2'        => '',
             'address'              => '',
             'maps_url'             => '',
+            'booking_url'          => '',
             'locations'            => $default_locations,
             'auto_link_all_emails' => false,
             'auto_link_all_phones' => false,
@@ -103,9 +111,12 @@ final class AHM_Contact_Info
             for ($i = 0; $i < 6; $i++) {
                 $loc = isset($saved['locations'][$i]) && is_array($saved['locations'][$i]) ? $saved['locations'][$i] : [];
                 $locations[] = [
-                    'name'     => (string) ($loc['name'] ?? ''),
-                    'address'  => (string) ($loc['address'] ?? ''),
-                    'maps_url' => (string) ($loc['maps_url'] ?? ''),
+                    'name'        => (string) ($loc['name'] ?? ''),
+                    'address'     => (string) ($loc['address'] ?? ''),
+                    'phone'       => (string) ($loc['phone'] ?? ''),
+                    'email'       => (string) ($loc['email'] ?? ''),
+                    'maps_url'    => (string) ($loc['maps_url'] ?? ''),
+                    'booking_url' => (string) ($loc['booking_url'] ?? ''),
                 ];
             }
             $merged['locations'] = $locations;
@@ -209,7 +220,8 @@ final class AHM_Contact_Info
             'address_line2'        => '',
             'address'              => '',
             'maps_url'             => '',
-            'locations'            => array_fill(0, 6, ['name' => '', 'address' => '', 'maps_url' => '']),
+            'booking_url'          => '',
+            'locations'            => array_fill(0, 6, ['name' => '', 'address' => '', 'phone' => '', 'email' => '', 'maps_url' => '', 'booking_url' => '']),
             'auto_link_all_emails' => false,
             'auto_link_all_phones' => false,
         ];
@@ -246,14 +258,21 @@ final class AHM_Contact_Info
             $sanitized['maps_url'] = esc_url_raw((string) $input['maps_url']);
         }
 
+        if (isset($input['booking_url'])) {
+            $sanitized['booking_url'] = esc_url_raw((string) $input['booking_url']);
+        }
+
         $sanitized_locations = [];
         $raw_locations       = isset($input['locations']) && is_array($input['locations']) ? $input['locations'] : [];
         for ($i = 0; $i < 6; $i++) {
-            $loc                 = isset($raw_locations[$i]) && is_array($raw_locations[$i]) ? $raw_locations[$i] : [];
+            $loc                   = isset($raw_locations[$i]) && is_array($raw_locations[$i]) ? $raw_locations[$i] : [];
             $sanitized_locations[] = [
-                'name'     => isset($loc['name']) ? sanitize_text_field((string) $loc['name']) : '',
-                'address'  => isset($loc['address']) ? sanitize_text_field((string) $loc['address']) : '',
-                'maps_url' => isset($loc['maps_url']) ? esc_url_raw((string) $loc['maps_url']) : '',
+                'name'        => isset($loc['name']) ? sanitize_text_field((string) $loc['name']) : '',
+                'address'     => isset($loc['address']) ? sanitize_text_field((string) $loc['address']) : '',
+                'phone'       => isset($loc['phone']) ? sanitize_text_field((string) $loc['phone']) : '',
+                'email'       => isset($loc['email']) ? sanitize_email((string) $loc['email']) : '',
+                'maps_url'    => isset($loc['maps_url']) ? esc_url_raw((string) $loc['maps_url']) : '',
+                'booking_url' => isset($loc['booking_url']) ? esc_url_raw((string) $loc['booking_url']) : '',
             ];
         }
         $sanitized['locations'] = $sanitized_locations;
@@ -287,6 +306,34 @@ final class AHM_Contact_Info
         $auto_all_emails = ! empty($options['auto_link_all_emails']);
         $auto_all_phones = ! empty($options['auto_link_all_phones']);
 
+        // Collect all phones (primary + practice locations)
+        $phones_to_process = [];
+        if (! empty($phone)) {
+            $phones_to_process[] = $phone;
+        }
+        if (! empty($options['locations']) && is_array($options['locations'])) {
+            foreach ($options['locations'] as $loc) {
+                if (! empty($loc['phone'])) {
+                    $phones_to_process[] = (string) $loc['phone'];
+                }
+            }
+        }
+        $phones_to_process = array_values(array_unique($phones_to_process));
+
+        // Collect all emails (primary + practice locations)
+        $emails_to_process = [];
+        if (! empty($email)) {
+            $emails_to_process[] = $email;
+        }
+        if (! empty($options['locations']) && is_array($options['locations'])) {
+            foreach ($options['locations'] as $loc) {
+                if (! empty($loc['email'])) {
+                    $emails_to_process[] = (string) $loc['email'];
+                }
+            }
+        }
+        $emails_to_process = array_values(array_unique($emails_to_process));
+
         $uk_phone  = ! empty($phone) ? self::format_uk_phone($phone) : ['display' => '', 'tel' => '', 'raw_digits' => ''];
 
         // Step 1: Process existing <a> tags with href shortcodes or matching targets & format inner text
@@ -294,47 +341,76 @@ final class AHM_Contact_Info
 
         $content = preg_replace_callback(
             $regex_a,
-            function (array $matches) use ($phone, $uk_phone, $email, $maps_url): string {
+            function (array $matches) use ($phones_to_process, $emails_to_process, $maps_url): string {
                 $before   = $matches[1];
                 $raw_href = $matches[2];
                 $after    = $matches[3];
                 $text     = $matches[4];
 
-                $decoded_href = urldecode($raw_href);
-                $new_href = null;
-                $link_type_class = '';
-                $is_phone = false;
+                $decoded_href     = urldecode($raw_href);
+                $new_href         = null;
+                $link_type_class  = '';
+                $is_phone         = false;
+                $matched_uk_phone = null;
 
-                if (
-                    str_contains($decoded_href, '[ahm_phone]') ||
-                    str_contains($decoded_href, 'ahm_phone') ||
-                    (! empty($phone) && str_contains($decoded_href, $phone)) ||
-                    (! empty($uk_phone['raw_digits']) && str_contains($decoded_href, $uk_phone['raw_digits'])) ||
-                    (! empty($phone) && str_contains($text, $phone)) ||
-                    (! empty($uk_phone['raw_digits']) && str_contains($text, $uk_phone['raw_digits']))
-                ) {
-                    if (! empty($uk_phone['tel'])) {
-                        $new_href = $uk_phone['tel'];
-                        $link_type_class = 'ahm-contact-link ahm-contact-phone-link';
-                        $is_phone = true;
+                if (str_contains($decoded_href, '[ahm_phone]') || str_contains($decoded_href, 'ahm_phone')) {
+                    $p_first = $phones_to_process[0] ?? '';
+                    if (! empty($p_first)) {
+                        $matched_uk_phone = self::format_uk_phone($p_first);
+                        $new_href         = $matched_uk_phone['tel'];
+                        $link_type_class  = 'ahm-contact-link ahm-contact-phone-link';
+                        $is_phone         = true;
                     }
-                } elseif (
-                    str_contains($decoded_href, '[ahm_email]') ||
-                    str_contains($decoded_href, 'ahm_email') ||
-                    (! empty($email) && str_contains($decoded_href, $email)) ||
-                    (! empty($email) && str_contains($text, $email))
-                ) {
-                    if (! empty($email)) {
-                        $new_href = 'mailto:' . $email;
-                        $link_type_class = 'ahm-contact-link ahm-contact-email-link';
+                } else {
+                    foreach ($phones_to_process as $p_item) {
+                        $p_uk = self::format_uk_phone($p_item);
+                        if (
+                            (! empty($p_item) && str_contains($decoded_href, $p_item)) ||
+                            (! empty($p_uk['raw_digits']) && str_contains($decoded_href, $p_uk['raw_digits'])) ||
+                            (! empty($p_item) && str_contains($text, $p_item)) ||
+                            (! empty($p_uk['raw_digits']) && str_contains($text, $p_uk['raw_digits']))
+                        ) {
+                            if (! empty($p_uk['tel'])) {
+                                $new_href         = $p_uk['tel'];
+                                $link_type_class  = 'ahm-contact-link ahm-contact-phone-link';
+                                $is_phone         = true;
+                                $matched_uk_phone = $p_uk;
+                                break;
+                            }
+                        }
                     }
-                } elseif (
-                    str_contains($decoded_href, '[ahm_maps_url]') ||
-                    str_contains($decoded_href, 'ahm_maps_url')
-                ) {
-                    if (! empty($maps_url)) {
-                        $new_href = $maps_url;
-                        $link_type_class = 'ahm-contact-link ahm-contact-maps-link';
+                }
+
+                if (null === $new_href) {
+                    if (str_contains($decoded_href, '[ahm_email]') || str_contains($decoded_href, 'ahm_email')) {
+                        $em_first = $emails_to_process[0] ?? '';
+                        if (! empty($em_first)) {
+                            $new_href        = 'mailto:' . $em_first;
+                            $link_type_class = 'ahm-contact-link ahm-contact-email-link';
+                        }
+                    } else {
+                        foreach ($emails_to_process as $em_item) {
+                            if (
+                                (! empty($em_item) && str_contains($decoded_href, $em_item)) ||
+                                (! empty($em_item) && str_contains($text, $em_item))
+                            ) {
+                                $new_href        = 'mailto:' . $em_item;
+                                $link_type_class = 'ahm-contact-link ahm-contact-email-link';
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (null === $new_href) {
+                    if (
+                        str_contains($decoded_href, '[ahm_maps_url]') ||
+                        str_contains($decoded_href, 'ahm_maps_url')
+                    ) {
+                        if (! empty($maps_url)) {
+                            $new_href        = $maps_url;
+                            $link_type_class = 'ahm-contact-link ahm-contact-maps-link';
+                        }
                     }
                 }
 
@@ -343,13 +419,17 @@ final class AHM_Contact_Info
                 }
 
                 // Format inner text if this is a phone link and text matches raw phone or phone string
-                if ($is_phone && ! empty($uk_phone['display'])) {
-                    if (! empty($phone) && str_contains($text, $phone)) {
-                        $text = str_replace($phone, $uk_phone['display'], $text);
-                    } elseif (! empty($uk_phone['raw_digits']) && str_contains($text, $uk_phone['raw_digits'])) {
-                        $text = str_replace($uk_phone['raw_digits'], $uk_phone['display'], $text);
-                    } elseif ($text === $raw_href || str_contains($text, '[ahm_phone]')) {
-                        $text = str_replace('[ahm_phone]', $uk_phone['display'], $text);
+                if ($is_phone && ! empty($matched_uk_phone['display'])) {
+                    foreach ($phones_to_process as $p_item) {
+                        $p_uk = self::format_uk_phone($p_item);
+                        if (! empty($p_item) && str_contains($text, $p_item)) {
+                            $text = str_replace($p_item, $p_uk['display'], $text);
+                        } elseif (! empty($p_uk['raw_digits']) && str_contains($text, $p_uk['raw_digits'])) {
+                            $text = str_replace($p_uk['raw_digits'], $p_uk['display'], $text);
+                        }
+                    }
+                    if ($text === $raw_href || str_contains($text, '[ahm_phone]')) {
+                        $text = str_replace('[ahm_phone]', $matched_uk_phone['display'], $text);
                     }
                 }
 
@@ -386,18 +466,23 @@ final class AHM_Contact_Info
         $parts = preg_split('/(<a\s+[^>]*?>.*?<\/a>|<[^>]+>)/is', $content, -1, PREG_SPLIT_DELIM_CAPTURE);
 
         if (is_array($parts)) {
-            // Specified AHM phone number matching
-            if (! empty($phone) && ! empty($uk_phone['tel'])) {
+            // Specified AHM phone numbers matching (primary + practice locations)
+            foreach ($phones_to_process as $p_item) {
+                $p_uk = self::format_uk_phone($p_item);
+                if (empty($p_uk['tel'])) {
+                    continue;
+                }
+
                 $search_patterns = array_unique(array_filter([
-                    $phone,
-                    $uk_phone['display'],
-                    $uk_phone['raw_digits'],
+                    $p_item,
+                    $p_uk['display'],
+                    $p_uk['raw_digits'],
                 ]));
 
                 $phone_replacement = sprintf(
                     '<a href="%s" class="ahm-contact-link ahm-contact-phone-link">%s</a>',
-                    esc_url($uk_phone['tel']),
-                    esc_html($uk_phone['display'])
+                    esc_url($p_uk['tel']),
+                    esc_html($p_uk['display'])
                 );
 
                 foreach ($parts as &$part) {
@@ -414,20 +499,20 @@ final class AHM_Contact_Info
                 unset($part);
             }
 
-            // Specified AHM email address matching
-            if (! empty($email)) {
+            // Specified AHM email addresses matching (primary + practice locations)
+            foreach ($emails_to_process as $em_item) {
                 $email_replacement = sprintf(
                     '<a href="%s" class="ahm-contact-link ahm-contact-email-link">%s</a>',
-                    esc_url('mailto:' . $email),
-                    esc_html($email)
+                    esc_url('mailto:' . $em_item),
+                    esc_html($em_item)
                 );
 
                 foreach ($parts as &$part) {
                     if (str_starts_with($part, '<')) {
                         continue;
                     }
-                    if (str_contains($part, $email)) {
-                        $part = str_replace($email, $email_replacement, $part);
+                    if (str_contains($part, $em_item)) {
+                        $part = str_replace($em_item, $email_replacement, $part);
                     }
                 }
                 unset($part);
@@ -574,6 +659,16 @@ final class AHM_Contact_Info
                             <p class="description"><?php esc_html_e('Primary Google Maps share URL for main business location.', 'ahm-core'); ?></p>
                         </td>
                     </tr>
+
+                    <tr>
+                        <th scope="row">
+                            <label for="ahm_booking_url"><?php esc_html_e('Primary Booking URL', 'ahm-core'); ?></label>
+                        </th>
+                        <td>
+                            <input type="url" id="ahm_booking_url" name="<?php echo esc_attr(self::OPTION_KEY); ?>[booking_url]" value="<?php echo esc_attr($options['booking_url'] ?? ''); ?>" class="large-text" placeholder="https://..." />
+                            <p class="description"><?php esc_html_e('Primary external appointment / consultation booking link (e.g. Doctify, Top Doctors, or booking portal).', 'ahm-core'); ?></p>
+                        </td>
+                    </tr>
                 </table>
 
                 <hr style="margin: 25px 0 15px 0; border:0; border-top:1px solid #e5e5e5;" />
@@ -585,10 +680,13 @@ final class AHM_Contact_Info
                     <?php
                     $locations = $options['locations'] ?? [];
                     for ($i = 0; $i < 6; $i++) :
-                        $loc_name = esc_attr($locations[$i]['name'] ?? '');
-                        $loc_addr = esc_attr($locations[$i]['address'] ?? '');
-                        $loc_maps = esc_attr($locations[$i]['maps_url'] ?? '');
-                        $num = $i + 1;
+                        $loc_name  = esc_attr($locations[$i]['name'] ?? '');
+                        $loc_addr  = esc_attr($locations[$i]['address'] ?? '');
+                        $loc_phone = esc_attr($locations[$i]['phone'] ?? '');
+                        $loc_email = esc_attr($locations[$i]['email'] ?? '');
+                        $loc_maps  = esc_attr($locations[$i]['maps_url'] ?? '');
+                        $loc_book  = esc_attr($locations[$i]['booking_url'] ?? '');
+                        $num       = $i + 1;
                         ?>
                         <div style="background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px 15px;">
                             <strong style="display:block; margin-bottom: 8px; color: #1d2327; font-size: 13px;">
@@ -602,9 +700,21 @@ final class AHM_Contact_Info
                                 <label style="display:block; font-size: 11px; color:#646970; margin-bottom: 2px;"><?php esc_html_e('Town & Postcode:', 'ahm-core'); ?></label>
                                 <input type="text" name="<?php echo esc_attr(self::OPTION_KEY); ?>[locations][<?php echo $i; ?>][address]" value="<?php echo $loc_addr; ?>" class="widefat" placeholder="e.g. Gobowen, Oswestry SY10 7AG" />
                             </div>
-                            <div>
+                            <div style="margin-bottom: 8px;">
+                                <label style="display:block; font-size: 11px; color:#646970; margin-bottom: 2px;"><?php esc_html_e('Phone Number (Optional):', 'ahm-core'); ?></label>
+                                <input type="text" name="<?php echo esc_attr(self::OPTION_KEY); ?>[locations][<?php echo $i; ?>][phone]" value="<?php echo $loc_phone; ?>" class="widefat" placeholder="e.g. 01691 404000 or +44 1691 404000" />
+                            </div>
+                            <div style="margin-bottom: 8px;">
+                                <label style="display:block; font-size: 11px; color:#646970; margin-bottom: 2px;"><?php esc_html_e('Email Address (Optional):', 'ahm-core'); ?></label>
+                                <input type="email" name="<?php echo esc_attr(self::OPTION_KEY); ?>[locations][<?php echo $i; ?>][email]" value="<?php echo $loc_email; ?>" class="widefat" placeholder="e.g. appointments@hospital.co.uk" />
+                            </div>
+                            <div style="margin-bottom: 8px;">
                                 <label style="display:block; font-size: 11px; color:#646970; margin-bottom: 2px;"><?php esc_html_e('Google Maps Link (Optional):', 'ahm-core'); ?></label>
                                 <input type="url" name="<?php echo esc_attr(self::OPTION_KEY); ?>[locations][<?php echo $i; ?>][maps_url]" value="<?php echo $loc_maps; ?>" class="widefat" placeholder="https://maps.app.goo.gl/..." />
+                            </div>
+                            <div>
+                                <label style="display:block; font-size: 11px; color:#646970; margin-bottom: 2px;"><?php esc_html_e('Booking Link (Optional):', 'ahm-core'); ?></label>
+                                <input type="url" name="<?php echo esc_attr(self::OPTION_KEY); ?>[locations][<?php echo $i; ?>][booking_url]" value="<?php echo $loc_book; ?>" class="widefat" placeholder="https://..." />
                             </div>
                         </div>
                     <?php endfor; ?>
@@ -691,8 +801,20 @@ final class AHM_Contact_Info
                         <td><?php esc_html_e('Outputs a clickable hyperlink labeled "View on Google Maps".', 'ahm-core'); ?></td>
                     </tr>
                     <tr>
-                        <td><code>[ahm_contact field="phone|email|gmc|address|maps_url"]</code></td>
+                        <td><code>[ahm_booking_url]</code></td>
+                        <td><?php esc_html_e('Outputs the raw Primary Booking / Appointment URL.', 'ahm-core'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>[ahm_booking_url link="true"]</code></td>
+                        <td><?php esc_html_e('Outputs a clickable hyperlink labeled "Book an Appointment".', 'ahm-core'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>[ahm_contact field="phone|email|gmc|address|maps_url|booking_url"]</code></td>
                         <td><?php esc_html_e('Unified shortcode syntax with optional link="true" parameter.', 'ahm-core'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><code>[ahm_location index="1" field="name|address|phone|email|maps_url|booking_url|full"]</code></td>
+                        <td><?php esc_html_e('Practice location shortcode for index 1-6 with optional link="true" parameter.', 'ahm-core'); ?></td>
                     </tr>
                     <tr>
                         <td><code>before="..." after="..." fallback="..."</code></td>
@@ -716,7 +838,10 @@ final class AHM_Contact_Info
         add_shortcode('ahm_gmc_number', [$this, 'shortcode_gmc_number']);
         add_shortcode('ahm_address', [$this, 'shortcode_address']);
         add_shortcode('ahm_maps_url', [$this, 'shortcode_maps_url']);
+        add_shortcode('ahm_booking_url', [$this, 'shortcode_booking_url']);
+        add_shortcode('ahm_booking', [$this, 'shortcode_booking_url']);
         add_shortcode('ahm_contact', [$this, 'shortcode_unified']);
+        add_shortcode('ahm_location', [$this, 'shortcode_location']);
     }
 
     /**
@@ -935,8 +1060,46 @@ final class AHM_Contact_Info
     }
 
     /**
+     * [ahm_booking_url link="true|false" text="Book an Appointment" before="" after="" fallback=""]
+     * [ahm_booking link="true|false" text="Book an Appointment" before="" after="" fallback=""]
+     *
+     * @param array<string, mixed>|string $atts
+     */
+    public function shortcode_booking_url(array|string $atts = []): string
+    {
+        $parsed = shortcode_atts([
+            'link'     => 'false',
+            'text'     => __('Book an Appointment', 'ahm-core'),
+            'before'   => '',
+            'after'    => '',
+            'fallback' => '',
+        ], (array) $atts, 'ahm_booking_url');
+
+        $options     = self::get_options();
+        $booking_url = $options['booking_url'] ?? '';
+
+        if (empty($booking_url)) {
+            return $this->wrap_shortcode_output('', $parsed);
+        }
+
+        $is_link = filter_var($parsed['link'], FILTER_VALIDATE_BOOLEAN);
+
+        if ($is_link) {
+            $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($booking_url);
+            $res          = sprintf(
+                '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-booking-link">%s</a>',
+                esc_url($booking_url),
+                $display_text
+            );
+            return $this->wrap_shortcode_output($res, $parsed);
+        }
+
+        return $this->wrap_shortcode_output(esc_url($booking_url), $parsed);
+    }
+
+    /**
      * Unified shortcode syntax:
-     * [ahm_contact field="phone|email|gmc|address|maps_url" link="true|false" before="" after="" fallback=""]
+     * [ahm_contact field="phone|email|gmc|address|maps_url|booking_url" link="true|false" before="" after="" fallback=""]
      *
      * @param array<string, mixed>|string $atts
      */
@@ -955,12 +1118,155 @@ final class AHM_Contact_Info
         $field = strtolower(trim((string) $parsed['field']));
 
         return match ($field) {
-            'phone'                           => $this->shortcode_phone($parsed),
-            'email'                           => $this->shortcode_email($parsed),
-            'gmc', 'gmc_number', 'gmc-number' => $this->shortcode_gmc_number($parsed),
-            'address'                         => $this->shortcode_address($parsed),
-            'maps_url', 'maps'                => $this->shortcode_maps_url($parsed),
-            default                           => '',
+            'phone'                            => $this->shortcode_phone($parsed),
+            'email'                            => $this->shortcode_email($parsed),
+            'gmc', 'gmc_number', 'gmc-number'  => $this->shortcode_gmc_number($parsed),
+            'address'                          => $this->shortcode_address($parsed),
+            'maps_url', 'maps'                 => $this->shortcode_maps_url($parsed),
+            'booking', 'booking_url', 'book'   => $this->shortcode_booking_url($parsed),
+            default                            => '',
         };
+    }
+
+    /**
+     * Practice location shortcode syntax:
+     * [ahm_location index="1-6" field="name|address|phone|email|maps_url|booking_url|full" link="true|false" text="Custom Text" before="" after="" fallback=""]
+     *
+     * @param array<string, mixed>|string $atts
+     */
+    public function shortcode_location(array|string $atts = []): string
+    {
+        $parsed = shortcode_atts([
+            'index'    => '1',
+            'field'    => 'name',
+            'link'     => 'false',
+            'text'     => '',
+            'before'   => '',
+            'after'    => '',
+            'fallback' => '',
+        ], (array) $atts, 'ahm_location');
+
+        $idx       = max(0, min(5, ((int) $parsed['index']) - 1));
+        $options   = self::get_options();
+        $locations = $options['locations'] ?? [];
+
+        if (empty($locations[$idx])) {
+            return $this->wrap_shortcode_output('', $parsed);
+        }
+
+        $loc     = $locations[$idx];
+        $field   = strtolower(trim((string) $parsed['field']));
+        $is_link = filter_var($parsed['link'], FILTER_VALIDATE_BOOLEAN);
+
+        switch ($field) {
+            case 'phone':
+                $phone = $loc['phone'] ?? '';
+                if (empty($phone)) {
+                    return $this->wrap_shortcode_output('', $parsed);
+                }
+                $uk_phone     = self::format_uk_phone($phone);
+                $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($uk_phone['display']);
+                if ($is_link) {
+                    $res = sprintf(
+                        '<a href="%s" class="ahm-contact-link ahm-contact-phone-link">%s</a>',
+                        esc_url($uk_phone['tel']),
+                        $display_text
+                    );
+                    return $this->wrap_shortcode_output($res, $parsed);
+                }
+                return $this->wrap_shortcode_output($display_text, $parsed);
+
+            case 'email':
+                $email = $loc['email'] ?? '';
+                if (empty($email)) {
+                    return $this->wrap_shortcode_output('', $parsed);
+                }
+                $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($email);
+                if ($is_link) {
+                    $res = sprintf(
+                        '<a href="%s" class="ahm-contact-link ahm-contact-email-link">%s</a>',
+                        esc_url('mailto:' . $email),
+                        $display_text
+                    );
+                    return $this->wrap_shortcode_output($res, $parsed);
+                }
+                return $this->wrap_shortcode_output($display_text, $parsed);
+
+            case 'address':
+                $addr = $loc['address'] ?? '';
+                if (empty($addr)) {
+                    return $this->wrap_shortcode_output('', $parsed);
+                }
+                $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($addr);
+                if ($is_link && ! empty($loc['maps_url'])) {
+                    $res = sprintf(
+                        '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-address-link">%s</a>',
+                        esc_url($loc['maps_url']),
+                        $display_text
+                    );
+                    return $this->wrap_shortcode_output($res, $parsed);
+                }
+                return $this->wrap_shortcode_output($display_text, $parsed);
+
+            case 'maps_url':
+            case 'maps':
+                $maps_url = $loc['maps_url'] ?? '';
+                if (empty($maps_url)) {
+                    return $this->wrap_shortcode_output('', $parsed);
+                }
+                if ($is_link) {
+                    $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($maps_url);
+                    $res = sprintf(
+                        '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-maps-link">%s</a>',
+                        esc_url($maps_url),
+                        $display_text
+                    );
+                    return $this->wrap_shortcode_output($res, $parsed);
+                }
+                return $this->wrap_shortcode_output(esc_url($maps_url), $parsed);
+
+            case 'booking':
+            case 'booking_url':
+            case 'book':
+                $booking_url = $loc['booking_url'] ?? '';
+                if (empty($booking_url)) {
+                    return $this->wrap_shortcode_output('', $parsed);
+                }
+                if ($is_link) {
+                    $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($booking_url);
+                    $res = sprintf(
+                        '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-booking-link">%s</a>',
+                        esc_url($booking_url),
+                        $display_text
+                    );
+                    return $this->wrap_shortcode_output($res, $parsed);
+                }
+                return $this->wrap_shortcode_output(esc_url($booking_url), $parsed);
+
+            case 'full':
+                $full = trim(($loc['name'] ?? '') . ', ' . ($loc['address'] ?? ''), ', ');
+                if (empty($full)) {
+                    return $this->wrap_shortcode_output('', $parsed);
+                }
+                $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($full);
+                if ($is_link && ! empty($loc['maps_url'])) {
+                    $res = sprintf(
+                        '<a href="%s" target="_blank" rel="noopener noreferrer" class="ahm-contact-link ahm-contact-address-link">%s</a>',
+                        esc_url($loc['maps_url']),
+                        $display_text
+                    );
+                    return $this->wrap_shortcode_output($res, $parsed);
+                }
+                return $this->wrap_shortcode_output($display_text, $parsed);
+
+            case 'name':
+            default:
+                $name = $loc['name'] ?? '';
+                if (empty($name)) {
+                    return $this->wrap_shortcode_output('', $parsed);
+                }
+                $display_text = ! empty($parsed['text']) ? esc_html((string) $parsed['text']) : esc_html($name);
+                return $this->wrap_shortcode_output($display_text, $parsed);
+        }
     }
 }
