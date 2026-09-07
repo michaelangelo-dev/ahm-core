@@ -55,21 +55,28 @@ final class AHM_Site_Utilities
      *   disable_comments: bool,
      *   wp_rocket_rucss_exclusions: bool,
      *   uppercase_alt_text: bool,
+     *   enable_svg_uploads: bool,
      *   block_author_enum: bool,
      *   block_empty_author_archives: bool,
-     *   prevent_cpt_404: bool
+     *   prevent_cpt_404: bool,
+     *   dynamic_treatment_form_options: bool,
+     *   disable_google_fonts: bool,
+     *   preload_primary_font: bool
      * }
      */
     public static function get_options(): array
     {
         $defaults = [
-            'disable_comments'            => true,
-            'wp_rocket_rucss_exclusions'  => true,
-            'uppercase_alt_text'          => true,
-            'block_author_enum'           => true,
-            'block_empty_author_archives' => true,
-            'prevent_cpt_404'             => true,
+            'disable_comments'               => true,
+            'wp_rocket_rucss_exclusions'     => true,
+            'uppercase_alt_text'             => true,
+            'enable_svg_uploads'             => true,
+            'block_author_enum'              => true,
+            'block_empty_author_archives'    => true,
+            'prevent_cpt_404'                => true,
             'dynamic_treatment_form_options' => true,
+            'disable_google_fonts'           => true,
+            'preload_primary_font'           => true,
         ];
 
         $saved = get_option(self::OPTION_KEY, []);
@@ -110,10 +117,13 @@ final class AHM_Site_Utilities
             'disable_comments',
             'wp_rocket_rucss_exclusions',
             'uppercase_alt_text',
+            'enable_svg_uploads',
             'block_author_enum',
             'block_empty_author_archives',
             'prevent_cpt_404',
             'dynamic_treatment_form_options',
+            'disable_google_fonts',
+            'preload_primary_font',
         ];
 
         $sanitized = [];
@@ -175,11 +185,50 @@ final class AHM_Site_Utilities
             add_filter('elementor_pro/forms/render/item/select', [$this, 'populate_treatment_select_options'], 10, 3);
             add_filter('elementor_pro/forms/render/item/select', [$this, 'populate_location_select_options'], 10, 3);
         }
+
+        // 8. Safe SVG Uploads & Media Library Previews
+        if (! empty($options['enable_svg_uploads'])) {
+            AHM_SVG_Support::get_instance();
+        }
+
+        // 9. Elementor Google Fonts Disabler & Typography Filter
+        if (! empty($options['disable_google_fonts']) || 'yes' === get_option('ahm_disable_google_fonts')) {
+            add_filter('elementor/frontend/print_google_fonts', '__return_false');
+            add_filter('elementor/fonts/groups', [$this, 'restrict_elementor_font_groups']);
+        }
+
+        // 10. Primary Brand Font Preloader
+        if (! empty($options['preload_primary_font']) || 'yes' === get_option('ahm_disable_google_fonts')) {
+            add_action('wp_head', [$this, 'preload_primary_brand_font'], 1);
+        }
     }
 
     /*--------------------------------------------------------------
      * Feature Implementations
      *------------------------------------------------------------*/
+
+    /**
+     * Restrict Elementor's typography control dropdown to Custom and System fonts only.
+     *
+     * @param array<string, mixed> $groups Existing font groups.
+     * @return array<string, mixed> Modified font groups.
+     */
+    public function restrict_elementor_font_groups(array $groups): array
+    {
+        unset($groups['googlefonts'], $groups['earlyaccess']);
+        return $groups;
+    }
+
+    /**
+     * Inject high-priority woff2 font preloader into <head> for primary brand font.
+     */
+    public function preload_primary_brand_font(): void
+    {
+        $preload_url = get_option('ahm_preload_font_url');
+        if (! empty($preload_url)) {
+            echo '<link rel="preload" href="' . esc_url((string) $preload_url) . '" as="font" type="font/woff2" crossorigin>' . "\n";
+        }
+    }
 
     public function disable_comments_everywhere(): void
     {
@@ -496,14 +545,23 @@ final class AHM_Site_Utilities
                     </tr>
 
                     <tr>
-                        <th scope="row"><?php esc_html_e('Media Alt Text', 'ahm-core'); ?></th>
+                        <th scope="row"><?php esc_html_e('Media & Uploads', 'ahm-core'); ?></th>
                         <td>
-                            <label for="ahm_uppercase_alt_text" style="margin-bottom:10px; display:block;">
-                                <input type="checkbox" id="ahm_uppercase_alt_text" name="<?php echo esc_attr(self::OPTION_KEY); ?>[uppercase_alt_text]" value="1" <?php checked(! empty($options['uppercase_alt_text'])); ?> />
-                                <strong><?php esc_html_e('Auto-Format Image Alt Text on Upload', 'ahm-core'); ?></strong>
-                                <br />
-                                <span class="description"><?php esc_html_e('Automatically converts newly uploaded image Alt texts into Title Case / Uppercase format.', 'ahm-core'); ?></span>
-                            </label>
+                            <fieldset>
+                                <label for="ahm_enable_svg_uploads" style="margin-bottom:10px; display:block;">
+                                    <input type="checkbox" id="ahm_enable_svg_uploads" name="<?php echo esc_attr(self::OPTION_KEY); ?>[enable_svg_uploads]" value="1" <?php checked(! empty($options['enable_svg_uploads'])); ?> />
+                                    <strong><?php esc_html_e('Safe SVG Uploads & Media Library Previews', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description"><?php esc_html_e('Enables secure SVG uploads across WordPress Media Library, Custom Post Types, and ACF fields with automatic XML sanitization (stripping scripts and malicious entities) and admin thumbnail preview fixes.', 'ahm-core'); ?></span>
+                                </label>
+
+                                <label for="ahm_uppercase_alt_text" style="display:block;">
+                                    <input type="checkbox" id="ahm_uppercase_alt_text" name="<?php echo esc_attr(self::OPTION_KEY); ?>[uppercase_alt_text]" value="1" <?php checked(! empty($options['uppercase_alt_text'])); ?> />
+                                    <strong><?php esc_html_e('Auto-Format Image Alt Text on Upload', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description"><?php esc_html_e('Automatically converts newly uploaded image Alt texts into Title Case / Uppercase format.', 'ahm-core'); ?></span>
+                                </label>
+                            </fieldset>
                         </td>
                     </tr>
 
@@ -549,6 +607,35 @@ final class AHM_Site_Utilities
                                 <br />
                                 <span class="description"><?php esc_html_e('Automatically populates Elementor form select fields having Custom ID "treatment" or Label "Treatment" with published Treatments in Post Types Order menu order.', 'ahm-core'); ?></span>
                             </label>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Elementor & Typography', 'ahm-core'); ?></th>
+                        <td>
+                            <fieldset>
+                                <label for="ahm_disable_google_fonts" style="margin-bottom:10px; display:block;">
+                                    <input type="checkbox" id="ahm_disable_google_fonts" name="<?php echo esc_attr(self::OPTION_KEY); ?>[disable_google_fonts]" value="1" <?php checked(! empty($options['disable_google_fonts'])); ?> />
+                                    <strong><?php esc_html_e('Disable Elementor Google Fonts & Whitelist Custom Fonts', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description"><?php esc_html_e('Prevents Elementor from requesting external Google Fonts APIs and restricts the font family dropdown to local custom and system fonts.', 'ahm-core'); ?></span>
+                                </label>
+
+                                <label for="ahm_preload_primary_font" style="display:block;">
+                                    <input type="checkbox" id="ahm_preload_primary_font" name="<?php echo esc_attr(self::OPTION_KEY); ?>[preload_primary_font]" value="1" <?php checked(! empty($options['preload_primary_font'])); ?> />
+                                    <strong><?php esc_html_e('Preload Primary Brand Font in <head>', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description">
+                                        <?php esc_html_e('Injects a high-priority woff2 preload link into the head for the primary brand font.', 'ahm-core'); ?>
+                                        <?php
+                                        $preload_url = get_option('ahm_preload_font_url');
+                                        if (! empty($preload_url)) {
+                                            echo '<br /><code>' . esc_html((string) $preload_url) . '</code>';
+                                        }
+                                        ?>
+                                    </span>
+                                </label>
+                            </fieldset>
                         </td>
                     </tr>
                 </table>
