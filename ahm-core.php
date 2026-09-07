@@ -3,7 +3,7 @@
 /**
  * Plugin Name:       AHM Core
  * Description:       Core functionality for AHM sites. Protected from deactivation/deletion via the admin UI. Provides "Quick User Create", "Image Converter" (auto WebP), and "Cache Manager" tools.
- * Version:           3.3.0
+ * Version:           3.4.0
  * Author:            AHM
  * Requires at least: 6.0
  * Requires PHP:      8.0
@@ -22,7 +22,7 @@ if (! defined('ABSPATH')) {
 /*--------------------------------------------------------------
  * 1. Constants
  *------------------------------------------------------------*/
-define('AHM_CORE_VERSION', '3.3.0');
+define('AHM_CORE_VERSION', '3.4.0');
 define('AHM_CORE_FILE', __FILE__);
 define('AHM_CORE_DIR', plugin_dir_path(__FILE__));
 define('AHM_CORE_URL', plugin_dir_url(__FILE__));
@@ -39,6 +39,7 @@ require_once AHM_CORE_DIR . 'includes/class-ahm-cache-manager.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-contact-info.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-elementor-dynamic-tags.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-svg-support.php';
+require_once AHM_CORE_DIR . 'includes/class-ahm-form-antispam.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-site-utilities.php';
 
 /*--------------------------------------------------------------
