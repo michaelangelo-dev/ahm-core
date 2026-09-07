@@ -61,7 +61,11 @@ final class AHM_Site_Utilities
      *   prevent_cpt_404: bool,
      *   dynamic_treatment_form_options: bool,
      *   disable_google_fonts: bool,
-     *   preload_primary_font: bool
+     *   preload_primary_font: bool,
+     *   enable_form_antispam: bool,
+     *   antispam_block_cyrillic: bool,
+     *   antispam_block_links: bool,
+     *   antispam_silent_blackhole: bool
      * }
      */
     public static function get_options(): array
@@ -77,6 +81,10 @@ final class AHM_Site_Utilities
             'dynamic_treatment_form_options' => true,
             'disable_google_fonts'           => true,
             'preload_primary_font'           => true,
+            'enable_form_antispam'           => true,
+            'antispam_block_cyrillic'        => true,
+            'antispam_block_links'           => true,
+            'antispam_silent_blackhole'      => false,
         ];
 
         $saved = get_option(self::OPTION_KEY, []);
@@ -124,6 +132,10 @@ final class AHM_Site_Utilities
             'dynamic_treatment_form_options',
             'disable_google_fonts',
             'preload_primary_font',
+            'enable_form_antispam',
+            'antispam_block_cyrillic',
+            'antispam_block_links',
+            'antispam_silent_blackhole',
         ];
 
         $sanitized = [];
@@ -200,6 +212,11 @@ final class AHM_Site_Utilities
         // 10. Primary Brand Font Preloader
         if (! empty($options['preload_primary_font']) || 'yes' === get_option('ahm_disable_google_fonts')) {
             add_action('wp_head', [$this, 'preload_primary_brand_font'], 1);
+        }
+
+        // 11. Native Elementor Form Anti-Spam Engine
+        if (! empty($options['enable_form_antispam'])) {
+            AHM_Form_Antispam::get_instance();
         }
     }
 
@@ -634,6 +651,41 @@ final class AHM_Site_Utilities
                                         }
                                         ?>
                                     </span>
+                                </label>
+                            </fieldset>
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th scope="row"><?php esc_html_e('Form Spam Protection', 'ahm-core'); ?></th>
+                        <td>
+                            <fieldset>
+                                <label for="ahm_enable_form_antispam" style="margin-bottom:10px; display:block;">
+                                    <input type="checkbox" id="ahm_enable_form_antispam" name="<?php echo esc_attr(self::OPTION_KEY); ?>[enable_form_antispam]" value="1" <?php checked(! empty($options['enable_form_antispam'])); ?> />
+                                    <strong><?php esc_html_e('Enable Elementor Form Anti-Spam Engine', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description"><?php esc_html_e('Universal zero-plugin protection: off-screen honeypot trap, HMAC-signed time-trap velocity gate, and micro-JS interaction handshake.', 'ahm-core'); ?></span>
+                                </label>
+
+                                <label for="ahm_antispam_block_cyrillic" style="margin-bottom:10px; display:block;">
+                                    <input type="checkbox" id="ahm_antispam_block_cyrillic" name="<?php echo esc_attr(self::OPTION_KEY); ?>[antispam_block_cyrillic]" value="1" <?php checked(! empty($options['antispam_block_cyrillic'])); ?> />
+                                    <strong><?php esc_html_e('Block Cyrillic & Russian Characters in Submissions', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description"><?php esc_html_e('Automatically flags and rejects automated spam containing Cyrillic characters in form fields (recommended for UK/English healthcare sites).', 'ahm-core'); ?></span>
+                                </label>
+
+                                <label for="ahm_antispam_block_links" style="margin-bottom:10px; display:block;">
+                                    <input type="checkbox" id="ahm_antispam_block_links" name="<?php echo esc_attr(self::OPTION_KEY); ?>[antispam_block_links]" value="1" <?php checked(! empty($options['antispam_block_links'])); ?> />
+                                    <strong><?php esc_html_e('Block Links in Name & Phone Fields', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description"><?php esc_html_e('Rejects submissions attempting to place URLs or suspicious domain extensions into patient name or telephone fields.', 'ahm-core'); ?></span>
+                                </label>
+
+                                <label for="ahm_antispam_silent_blackhole" style="display:block;">
+                                    <input type="checkbox" id="ahm_antispam_silent_blackhole" name="<?php echo esc_attr(self::OPTION_KEY); ?>[antispam_silent_blackhole]" value="1" <?php checked(! empty($options['antispam_silent_blackhole'])); ?> />
+                                    <strong><?php esc_html_e('Silent Blackhole Mode (Deceive Bots)', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description"><?php esc_html_e('When enabled, returns a successful delivery response to detected bots so they do not retry, while silently suppressing outgoing emails.', 'ahm-core'); ?></span>
                                 </label>
                             </fieldset>
                         </td>
