@@ -22,7 +22,7 @@ if (! defined('ABSPATH')) {
 /*--------------------------------------------------------------
  * 1. Constants
  *------------------------------------------------------------*/
-define('AHM_CORE_VERSION', '3.4.0');
+define('AHM_CORE_VERSION', '3.4.1');
 define('AHM_CORE_FILE', __FILE__);
 define('AHM_CORE_DIR', plugin_dir_path(__FILE__));
 define('AHM_CORE_URL', plugin_dir_url(__FILE__));
@@ -41,6 +41,7 @@ require_once AHM_CORE_DIR . 'includes/class-ahm-elementor-dynamic-tags.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-svg-support.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-form-antispam.php';
 require_once AHM_CORE_DIR . 'includes/class-ahm-site-utilities.php';
+require_once AHM_CORE_DIR . 'includes/class-ahm-elementor-widgets.php';
 
 /*--------------------------------------------------------------
  * 3. Plugin Protection (preserved from v1)
@@ -118,6 +119,7 @@ add_action('plugins_loaded', function (): void {
     AHM_Contact_Info::get_instance();
     AHM_Elementor_Dynamic_Tags::get_instance();
     AHM_Site_Utilities::get_instance();
+    AHM_Elementor_Widgets::get_instance();
 
     // Admin-only classes — skip on front-end page loads.
     if (is_admin() || wp_doing_ajax() || wp_doing_cron()) {

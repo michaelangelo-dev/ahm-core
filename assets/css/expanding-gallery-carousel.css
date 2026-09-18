@@ -1,0 +1,650 @@
+/**
+ * Expanding Gallery Carousel (Active Card Enlargement) Stylesheet
+ *
+ * Supports both dedicated AHM Elementor widget and standard Elementor Nested Carousel.
+ * Features buttery-smooth 60fps width transitions, parent-contained navigation,
+ * and stable inner content boxes (zero text re-wrap/jitter during expansion).
+ *
+ * @package AHM_Core
+ */
+
+/* ==========================================================================
+   1. Section Container & Header Navigation
+   ========================================================================== */
+.gallery-section-container,
+.gallery-accordion-section {
+  max-width: 1220px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Header Navigation Container & Arrow Buttons (Destination or Inline) */
+.gallery-nav-box {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  width: auto !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.gallery-nav-btn,
+.gallery-nav-box .gallery-nav-btn,
+.gallery-nav-box .elementor-swiper-button,
+button.gallery-nav-btn,
+.gallery-nav-box button.gallery-nav-btn,
+.elementor-kit-4 button.gallery-nav-btn,
+.elementor-kit-4 .gallery-nav-box button.gallery-nav-btn {
+  position: static !important;
+  top: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  right: auto !important;
+  transform: none !important;
+  margin: 0 !important;
+  padding: 0 !important; /* Defeats theme & Elementor kit button padding that turns circles into ovals */
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  max-width: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  aspect-ratio: 1 / 1 !important;
+  background-color: #ffffff;
+  border: 2px solid var(--e-global-color-29c229c, #dbe2e6);
+  border-radius: 50% !important;
+  color: var(--e-global-color-primary, #0c2340);
+  cursor: pointer !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  box-sizing: border-box !important;
+  line-height: 1 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  flex-shrink: 0 !important;
+  user-select: none !important;
+  -webkit-appearance: none !important;
+}
+
+/* Bulletproof Navigation Icons (SVGs and Font Icons) */
+.gallery-nav-btn svg,
+.gallery-nav-box .gallery-nav-btn svg,
+.gallery-nav-box .elementor-swiper-button svg,
+.gallery-nav-btn .e-font-icon-svg,
+.gallery-nav-box .gallery-nav-btn .e-font-icon-svg,
+button.gallery-nav-btn svg {
+  display: inline-block !important;
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  min-height: 14px !important;
+  max-width: 14px !important;
+  max-height: 14px !important;
+  fill: currentColor !important;
+  color: inherit !important;
+  stroke: none !important;
+  vertical-align: middle !important;
+  transition: fill 0.15s ease, color 0.15s ease !important;
+  pointer-events: none !important;
+  flex-shrink: 0 !important;
+}
+
+.gallery-nav-btn svg path,
+.gallery-nav-box .gallery-nav-btn svg path,
+button.gallery-nav-btn svg path {
+  fill: currentColor !important;
+  stroke: none !important;
+  transition: fill 0.15s ease !important;
+}
+
+.gallery-nav-btn i,
+.gallery-nav-box .gallery-nav-btn i,
+.gallery-nav-box .elementor-swiper-button i,
+button.gallery-nav-btn i {
+  font-size: 14px !important;
+  line-height: 1 !important;
+  color: inherit !important;
+  pointer-events: none !important;
+}
+
+/* ==========================================================================
+   2. Swiper Track & Slide Base Layout
+   ========================================================================== */
+.expanding-carousel,
+.gallery-expanding-carousel {
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+.expanding-carousel .swiper,
+.gallery-expanding-carousel .swiper,
+.gallery-expanding-carousel .swiper-container {
+  overflow: visible !important;
+  width: 100% !important;
+}
+
+.expanding-carousel .swiper-wrapper,
+.gallery-expanding-carousel .swiper-wrapper {
+  display: flex !important;
+  align-items: stretch !important;
+  gap: var(--slide-gap, 16px) !important;
+  width: 100% !important;
+}
+
+/* Collapsed Slide (Default State) - Silky Smooth 60fps Deceleration */
+.expanding-carousel .swiper-slide,
+.gallery-expanding-carousel .swiper-slide,
+.gallery-expanding-carousel .e-n-carousel-slide {
+  margin-right: 0 !important; /* Neutralize Swiper inline margin so CSS gap controls 100% of spacing */
+  height: var(--slide-height, 520px);
+  border-radius: 20px;
+  overflow: hidden !important;
+  position: relative !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  width: var(--collapsed-width, 135px) !important;
+  transition: width 0.55s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: width;
+  user-select: none !important;
+  box-sizing: border-box !important;
+}
+
+/* Expanded Slide (Active State) */
+.expanding-carousel .swiper-slide.is-expanded,
+.gallery-expanding-carousel .swiper-slide.is-expanded,
+.gallery-expanding-carousel .e-n-carousel-slide.is-expanded {
+  width: var(--expanded-width, 616px) !important;
+  flex-shrink: 0 !important;
+  cursor: default !important;
+}
+
+/* Background Image & Zoom on Hover */
+.expanding-carousel .slide-bg,
+.gallery-expanding-carousel .slide-bg {
+  position: absolute !important;
+  inset: 0 !important;
+  background-size: cover !important;
+  background-position: center !important;
+  transition: transform 0.5s ease !important;
+}
+
+.expanding-carousel .swiper-slide:hover .slide-bg,
+.gallery-expanding-carousel .swiper-slide:hover .slide-bg {
+  transform: scale(1.03) !important;
+}
+
+/* Subtle Gradient Overlay */
+.expanding-carousel .slide-overlay,
+.gallery-expanding-carousel .slide-overlay {
+  position: absolute !important;
+  inset: 0 !important;
+  background: linear-gradient(180deg, rgba(12, 35, 64, 0.15) 0%, rgba(12, 35, 64, 0.4) 60%, rgba(12, 35, 64, 0.88) 100%);
+  transition: opacity 0.3s ease !important;
+}
+
+/* Top-Right Counter Badge */
+.expanding-carousel .slide-badge,
+.gallery-expanding-carousel .slide-badge {
+  position: absolute !important;
+  top: 20px !important;
+  right: 20px !important;
+  background: #ffffff;
+  color: #192535;
+  font-family: 'Manrope', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  padding: 6px 14px !important;
+  border-radius: 50px !important;
+  z-index: 3 !important;
+  opacity: 0 !important;
+  transform: translateY(-8px) !important;
+  transition: opacity 0.4s ease 0.15s, transform 0.4s ease 0.15s !important;
+  pointer-events: none !important;
+  line-height: 1 !important;
+}
+
+.expanding-carousel .swiper-slide.is-expanded .slide-badge,
+.gallery-expanding-carousel .swiper-slide.is-expanded .slide-badge,
+.gallery-expanding-carousel .e-n-carousel-slide.is-expanded .slide-badge {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+
+.expanding-carousel .slide-content-expanded,
+.gallery-expanding-carousel .slide-content-expanded,
+.expanding-carousel .swiper-slide > .e-con,
+.gallery-expanding-carousel .swiper-slide > .e-con {
+  position: absolute !important;
+  bottom: 28px !important;
+  left: 28px !important;
+  width: 480px !important;
+  max-width: calc(100% - 56px) !important;
+  z-index: 4 !important;
+  opacity: 0 !important;
+  transform: translateY(8px) !important;
+  transition: opacity 0.35s ease 0.15s, transform 0.35s ease 0.15s !important;
+  pointer-events: none !important;
+}
+
+.expanding-carousel .swiper-slide.is-expanded .slide-content-expanded,
+.gallery-expanding-carousel .swiper-slide.is-expanded .slide-content-expanded,
+.gallery-expanding-carousel .e-n-carousel-slide.is-expanded .slide-content-expanded,
+.expanding-carousel .swiper-slide.is-expanded > .e-con,
+.gallery-expanding-carousel .swiper-slide.is-expanded > .e-con {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+  pointer-events: auto !important;
+}
+
+.elementor-editor-active .expanding-carousel .swiper-slide.is-expanded > .e-con,
+.elementor-editor-active .gallery-expanding-carousel .swiper-slide.is-expanded > .e-con {
+  min-height: 80px;
+}
+
+/* Template Container Rendering */
+.expanding-carousel .slide-content-expanded .elementor,
+.expanding-carousel .slide-content-expanded .e-con,
+.expanding-carousel .slide-content-expanded .e-con-inner {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.expanding-carousel .slide-eyebrow,
+.gallery-expanding-carousel .slide-eyebrow {
+  font-family: 'Manrope', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.6px !important;
+  color: var(--e-global-color-accent, #DE5C29);
+  margin-bottom: 6px !important;
+}
+
+.expanding-carousel .slide-heading,
+.gallery-expanding-carousel .slide-heading {
+  font-family: 'Sora', sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  color: #ffffff;
+  line-height: 1.25 !important;
+  margin: 0 !important;
+}
+
+/* Collapsed Content (Vertical Title + Plus Indicator) */
+.expanding-carousel .slide-content-collapsed,
+.gallery-expanding-carousel .slide-content-collapsed {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 3 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 32px 16px 28px 16px !important;
+  opacity: 1 !important;
+  transition: opacity 0.25s ease !important;
+  pointer-events: none !important;
+  box-sizing: border-box !important;
+}
+
+.expanding-carousel .swiper-slide.is-expanded .slide-content-collapsed,
+.gallery-expanding-carousel .swiper-slide.is-expanded .slide-content-collapsed,
+.gallery-expanding-carousel .e-n-carousel-slide.is-expanded .slide-content-collapsed {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.expanding-carousel .slide-vertical-title,
+.gallery-expanding-carousel .slide-vertical-title {
+  font-family: 'Manrope', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 2px !important;
+  color: #ffffff;
+  writing-mode: vertical-rl !important;
+  transform: rotate(180deg) !important;
+  white-space: nowrap !important;
+  margin-top: 10px !important;
+}
+
+/* Plus Button Display (Strictly visual indicator) */
+.expanding-carousel .slide-plus-btn,
+.gallery-expanding-carousel .slide-plus-btn {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  color: var(--e-global-color-primary, #0c2340) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 20px !important;
+  font-weight: 400 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  transition: transform 0.25s ease !important;
+  pointer-events: none !important;
+  line-height: 1 !important;
+}
+
+.expanding-carousel .swiper-slide:hover .slide-plus-btn,
+.gallery-expanding-carousel .swiper-slide:hover .slide-plus-btn {
+  transform: scale(1.1) !important;
+}
+
+/* ==========================================================================
+   3. Responsive Breakpoints (Tablet & Mobile Stacked Architecture)
+   ========================================================================== */
+
+/* Breakpoint for Viewports <= 1024px */
+@media screen and (max-width: 1024px) {
+  /* 1. Hide Navigation Arrows & Badges on Stacked Screens */
+  .gallery-nav-box {
+    display: none !important;
+  }
+  .expanding-carousel .slide-badge,
+  .gallery-expanding-carousel .slide-badge {
+    display: none !important;
+  }
+
+  /* 2. Vertical Stacked Track */
+  .expanding-carousel .swiper,
+  .gallery-expanding-carousel .swiper,
+  .gallery-expanding-carousel .swiper-container {
+    overflow: visible !important;
+    width: 100% !important;
+  }
+
+  .expanding-carousel .swiper-wrapper,
+  .gallery-expanding-carousel .swiper-wrapper {
+    display: flex !important;
+    flex-direction: column !important;
+    transform: none !important;
+    gap: var(--slide-gap, 12px) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 3. Slide Dimensions - Purely Variable-Driven (Zero Hardcoded Overrides) */
+  body .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide,
+  body .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide:not(.is-expanded),
+  body .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide.is-expanded,
+  .gallery-section-container .swiper-slide,
+  .gallery-section-container .swiper-slide:not(.is-expanded),
+  .gallery-section-container .swiper-slide.is-expanded,
+  .expanding-carousel .swiper-slide,
+  .gallery-expanding-carousel .swiper-slide {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin-right: 0 !important;
+    transform: none !important;
+    position: relative !important;
+    overflow: hidden !important;
+    flex-shrink: 0 !important;
+    transition: height 0.5s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.5s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.3s ease !important;
+    will-change: height, max-height;
+  }
+
+  /* Collapsed Slide (Horizontal Bar) */
+  body .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide:not(.is-expanded),
+  .gallery-section-container .swiper-slide:not(.is-expanded),
+  .expanding-carousel .swiper-slide:not(.is-expanded),
+  .gallery-expanding-carousel .swiper-slide:not(.is-expanded),
+  .gallery-expanding-carousel .e-n-carousel-slide:not(.is-expanded) {
+    height: var(--collapsed-height, 72px) !important;
+    min-height: var(--collapsed-height, 72px) !important;
+    max-height: var(--collapsed-height, 72px) !important;
+    border-radius: 16px !important;
+    cursor: pointer !important;
+  }
+
+  /* Expanded Slide (Full Active Card) - Follows Elementor Slider or Variable */
+  body .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide.is-expanded,
+  .gallery-section-container .swiper-slide.is-expanded,
+  .expanding-carousel .swiper-slide.is-expanded,
+  .gallery-expanding-carousel .swiper-slide.is-expanded,
+  .gallery-expanding-carousel .e-n-carousel-slide.is-expanded {
+    height: var(--slide-height, 340px) !important;
+    min-height: 0 !important;
+    max-height: var(--slide-height, 340px) !important;
+    border-radius: 20px !important;
+    cursor: default !important;
+  }
+
+  /* 4. Collapsed Bar Content (Horizontal Title + Right Plus Button) */
+  .expanding-carousel .slide-content-collapsed,
+  .gallery-expanding-carousel .slide-content-collapsed {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0 16px 0 22px !important;
+    opacity: 1 !important;
+    transition: opacity 0.25s ease !important;
+    pointer-events: none !important;
+    box-sizing: border-box !important;
+  }
+
+  .expanding-carousel .swiper-slide.is-expanded .slide-content-collapsed,
+  .gallery-expanding-carousel .swiper-slide.is-expanded .slide-content-collapsed,
+  .gallery-expanding-carousel .e-n-carousel-slide.is-expanded .slide-content-collapsed {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .expanding-carousel .slide-vertical-title,
+  .gallery-expanding-carousel .slide-vertical-title {
+    writing-mode: horizontal-tb !important;
+    transform: none !important;
+    margin: 0 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-family: 'Manrope', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 1.5px !important;
+    color: #ffffff !important;
+    line-height: 1 !important;
+  }
+
+  .expanding-carousel .slide-plus-btn,
+  .gallery-expanding-carousel .slide-plus-btn {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+    border-radius: 50% !important;
+    background: #ffffff !important;
+    color: var(--e-global-color-primary, #0c2340) !important;
+    font-size: 20px !important;
+    font-weight: 400 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    flex-shrink: 0 !important;
+    margin-left: 12px !important;
+    pointer-events: none !important;
+    line-height: 1 !important;
+  }
+
+  /* 5. Expanded Content (Bottom Left) */
+  .expanding-carousel .slide-content-expanded,
+  .gallery-expanding-carousel .slide-content-expanded {
+    width: calc(100% - 44px) !important;
+    max-width: calc(100% - 44px) !important;
+    left: 22px !important;
+    right: 22px !important;
+    bottom: 24px !important;
+    box-sizing: border-box !important;
+  }
+
+  .expanding-carousel .slide-eyebrow,
+  .gallery-expanding-carousel .slide-eyebrow {
+    font-size: 11px !important;
+    letter-spacing: 1.5px !important;
+    margin-bottom: 6px !important;
+  }
+
+  .expanding-carousel .slide-heading,
+  .gallery-expanding-carousel .slide-heading {
+    font-size: 20px !important;
+    line-height: 1.3 !important;
+  }
+}
+
+/* ==========================================================================
+   4. Elementor Editor Live Preview Mode (Tablet & Mobile Classes)
+   ========================================================================== */
+body.elementor-device-tablet .gallery-nav-box,
+body.elementor-device-mobile .gallery-nav-box {
+  display: none !important;
+}
+body.elementor-device-tablet .expanding-carousel .slide-badge,
+body.elementor-device-mobile .expanding-carousel .slide-badge,
+body.elementor-device-tablet .gallery-expanding-carousel .slide-badge,
+body.elementor-device-mobile .gallery-expanding-carousel .slide-badge {
+  display: none !important;
+}
+body.elementor-device-tablet .expanding-carousel .swiper,
+body.elementor-device-mobile .expanding-carousel .swiper,
+body.elementor-device-tablet .gallery-expanding-carousel .swiper,
+body.elementor-device-mobile .gallery-expanding-carousel .swiper {
+  overflow: visible !important;
+  width: 100% !important;
+}
+body.elementor-device-tablet .expanding-carousel .swiper-wrapper,
+body.elementor-device-mobile .expanding-carousel .swiper-wrapper,
+body.elementor-device-tablet .gallery-expanding-carousel .swiper-wrapper,
+body.elementor-device-mobile .gallery-expanding-carousel .swiper-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  transform: none !important;
+  gap: var(--slide-gap, 12px) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+body.elementor-device-tablet .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide,
+body.elementor-device-mobile .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide,
+body.elementor-device-tablet .gallery-section-container .swiper-slide,
+body.elementor-device-mobile .gallery-section-container .swiper-slide {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin-right: 0 !important;
+  transform: none !important;
+  position: relative !important;
+  overflow: hidden !important;
+  flex-shrink: 0 !important;
+  transition: height 0.5s cubic-bezier(0.16, 1, 0.3, 1), max-height 0.5s cubic-bezier(0.16, 1, 0.3, 1), border-radius 0.3s ease !important;
+  will-change: height, max-height;
+}
+body.elementor-device-tablet .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide:not(.is-expanded),
+body.elementor-device-mobile .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide:not(.is-expanded),
+body.elementor-device-tablet .gallery-section-container .swiper-slide:not(.is-expanded),
+body.elementor-device-mobile .gallery-section-container .swiper-slide:not(.is-expanded) {
+  height: var(--collapsed-height, 72px) !important;
+  min-height: var(--collapsed-height, 72px) !important;
+  max-height: var(--collapsed-height, 72px) !important;
+  border-radius: 16px !important;
+  cursor: pointer !important;
+}
+body.elementor-device-tablet .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide.is-expanded,
+body.elementor-device-mobile .elementor-widget-ahm_expanding_gallery_carousel .swiper-slide.is-expanded,
+body.elementor-device-tablet .gallery-section-container .swiper-slide.is-expanded,
+body.elementor-device-mobile .gallery-section-container .swiper-slide.is-expanded {
+  height: var(--slide-height, 340px) !important;
+  min-height: 0 !important;
+  max-height: var(--slide-height, 340px) !important;
+  border-radius: 20px !important;
+  cursor: default !important;
+}
+body.elementor-device-tablet .slide-content-collapsed,
+body.elementor-device-mobile .slide-content-collapsed {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 0 16px 0 22px !important;
+  opacity: 1 !important;
+  transition: opacity 0.25s ease !important;
+  pointer-events: none !important;
+  box-sizing: border-box !important;
+}
+body.elementor-device-tablet .swiper-slide.is-expanded .slide-content-collapsed,
+body.elementor-device-mobile .swiper-slide.is-expanded .slide-content-collapsed {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+body.elementor-device-tablet .slide-vertical-title,
+body.elementor-device-mobile .slide-vertical-title {
+  writing-mode: horizontal-tb !important;
+  transform: none !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-family: 'Manrope', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1.5px !important;
+  color: #ffffff !important;
+  line-height: 1 !important;
+}
+body.elementor-device-tablet .slide-plus-btn,
+body.elementor-device-mobile .slide-plus-btn {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  color: var(--e-global-color-primary, #0c2340) !important;
+  font-size: 20px !important;
+  font-weight: 400 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  flex-shrink: 0 !important;
+  margin-left: 12px !important;
+  pointer-events: none !important;
+  line-height: 1 !important;
+}
+body.elementor-device-tablet .slide-content-expanded,
+body.elementor-device-mobile .slide-content-expanded {
+  width: calc(100% - 44px) !important;
+  max-width: calc(100% - 44px) !important;
+  left: 22px !important;
+  right: 22px !important;
+  bottom: 24px !important;
+  box-sizing: border-box !important;
+}
+body.elementor-device-tablet .slide-eyebrow,
+body.elementor-device-mobile .slide-eyebrow {
+  font-size: 11px !important;
+  letter-spacing: 1.5px !important;
+  margin-bottom: 6px !important;
+}
+body.elementor-device-tablet .slide-heading,
+body.elementor-device-mobile .slide-heading {
+  font-size: 20px !important;
+  line-height: 1.3 !important;
+}
