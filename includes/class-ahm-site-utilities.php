@@ -59,6 +59,7 @@ final class AHM_Site_Utilities
      *   block_author_enum: bool,
      *   block_empty_author_archives: bool,
      *   prevent_cpt_404: bool,
+     *   remove_category_front_prefix: bool,
      *   dynamic_treatment_form_options: bool,
      *   disable_google_fonts: bool,
      *   preload_primary_font: bool,
@@ -78,6 +79,7 @@ final class AHM_Site_Utilities
             'block_author_enum'              => true,
             'block_empty_author_archives'    => true,
             'prevent_cpt_404'                => true,
+            'remove_category_front_prefix'   => true,
             'dynamic_treatment_form_options' => true,
             'disable_google_fonts'           => true,
             'preload_primary_font'           => true,
@@ -129,6 +131,7 @@ final class AHM_Site_Utilities
             'block_author_enum',
             'block_empty_author_archives',
             'prevent_cpt_404',
+            'remove_category_front_prefix',
             'dynamic_treatment_form_options',
             'disable_google_fonts',
             'preload_primary_font',
@@ -187,9 +190,14 @@ final class AHM_Site_Utilities
             add_action('template_redirect', [$this, 'block_empty_author_archives']);
         }
 
-        // 6. CPT 404 Prevention for ACF Post Types
+        // 6. CPT 404 Prevention for ACF Post Types & Rewrite Rules
         if (! empty($options['prevent_cpt_404'])) {
             add_action('generate_rewrite_rules', [$this, 'ensure_acf_post_types_registered'], 1);
+        }
+
+        // Rewrite Rules: Detach Custom Structure front prefix from categories
+        if (! empty($options['remove_category_front_prefix'])) {
+            add_filter('register_taxonomy_args', [$this, 'remove_category_front_prefix'], 10, 2);
         }
 
         // 7. Dynamic Form Options for Elementor Pro Forms
@@ -424,6 +432,24 @@ final class AHM_Site_Utilities
     }
 
     /**
+     * Remove the '/blogs/' front rewrite prefix from Category taxonomy archives.
+     *
+     * Prevents category permalinks from inheriting the Custom Structure prefix (e.g. /blogs/%postname%/).
+     *
+     * @param array<string, mixed> $args Taxonomy arguments.
+     * @param string $taxonomy Taxonomy name.
+     * @return array<string, mixed>
+     */
+    public function remove_category_front_prefix(array $args, string $taxonomy): array
+    {
+        if ('category' === $taxonomy) {
+            $args['rewrite']['with_front'] = false;
+        }
+
+        return $args;
+    }
+
+    /**
      * Dynamically populates Elementor Form select fields matching custom_id 'treatment' or label 'Treatment'
      * with published Treatment CPT posts, preserving Post Types Order sorting.
      *
@@ -606,12 +632,21 @@ final class AHM_Site_Utilities
                     <tr>
                         <th scope="row"><?php esc_html_e('Rewrite Rules & CPTs', 'ahm-core'); ?></th>
                         <td>
-                            <label for="ahm_prevent_cpt_404">
-                                <input type="checkbox" id="ahm_prevent_cpt_404" name="<?php echo esc_attr(self::OPTION_KEY); ?>[prevent_cpt_404]" value="1" <?php checked(! empty($options['prevent_cpt_404'])); ?> />
-                                <strong><?php esc_html_e('Prevent ACF Custom Post Type 404 Errors', 'ahm-core'); ?></strong>
-                                <br />
-                                <span class="description"><?php esc_html_e('Ensures all ACF Custom Post Types are dynamically registered prior to rewrite rule compilation to prevent 404 permalink issues.', 'ahm-core'); ?></span>
-                            </label>
+                            <fieldset>
+                                <label for="ahm_prevent_cpt_404" style="margin-bottom:10px; display:block;">
+                                    <input type="checkbox" id="ahm_prevent_cpt_404" name="<?php echo esc_attr(self::OPTION_KEY); ?>[prevent_cpt_404]" value="1" <?php checked(! empty($options['prevent_cpt_404'])); ?> />
+                                    <strong><?php esc_html_e('Prevent ACF Custom Post Type 404 Errors', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description"><?php esc_html_e('Ensures all ACF Custom Post Types are dynamically registered prior to rewrite rule compilation to prevent 404 permalink issues.', 'ahm-core'); ?></span>
+                                </label>
+
+                                <label for="ahm_remove_category_front_prefix" style="display:block;">
+                                    <input type="checkbox" id="ahm_remove_category_front_prefix" name="<?php echo esc_attr(self::OPTION_KEY); ?>[remove_category_front_prefix]" value="1" <?php checked(! empty($options['remove_category_front_prefix'])); ?> />
+                                    <strong><?php esc_html_e('Detach Front Prefix from Category Permalinks', 'ahm-core'); ?></strong>
+                                    <br />
+                                    <span class="description"><?php esc_html_e('Removes Custom Structure prefixes (such as /blogs/) from Category taxonomy archives, keeping them clean at /category/name/.', 'ahm-core'); ?></span>
+                                </label>
+                            </fieldset>
                         </td>
                     </tr>
 

@@ -109,6 +109,7 @@ final class AHM_Admin
             'cache-manager'   => __('Cache Manager', 'ahm-core'),
             'contact-info'    => __('Contact Info', 'ahm-core'),
             'site-utilities'  => __('Site Utilities', 'ahm-core'),
+            'widgets'         => __('Widgets', 'ahm-core'),
         ];
     }
 
@@ -152,6 +153,8 @@ final class AHM_Admin
                             <span class="dashicons dashicons-location" style="margin-right:4px;"></span>
                         <?php elseif ($slug === 'site-utilities'): ?>
                             <span class="dashicons dashicons-admin-tools" style="margin-right:4px;"></span>
+                        <?php elseif ($slug === 'widgets'): ?>
+                            <span class="dashicons dashicons-screenoptions" style="margin-right:4px;"></span>
                         <?php endif; ?>
                         <?php echo esc_html($label); ?>
                     </a>
